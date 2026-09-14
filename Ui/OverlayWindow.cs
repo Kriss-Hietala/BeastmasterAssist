@@ -34,14 +34,14 @@ public sealed class OverlayWindow : Window
         this.capture = capture;
         this.leveling = leveling;
         RespectCloseHotkey = false;
-        Size = new Vector2(400, 0);
+        Size = new Vector2(380, 0);
         SizeCondition = ImGuiCond.FirstUseEver;
     }
 
     public override void PreDraw()
     {
-        Flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
-        if (config.LockOverlay) Flags |= ImGuiWindowFlags.NoMove;
+        Flags = ImGuiWindowFlags.NoCollapse;
+        if (config.LockOverlay) Flags |= ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize;
         ImGui.SetNextWindowBgAlpha(0.90f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 10f);
         ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 6f);
@@ -55,15 +55,15 @@ public sealed class OverlayWindow : Window
     {
         UiText.Sync(config);
         RefreshSnapshot();
-        var scale = Math.Clamp(config.OverlayScale, 0.6f, 1.8f);
-        ImGui.SetWindowFontScale(scale);
+        ImGui.SetWindowFontScale(Math.Clamp(config.OverlayScale, 0.60f, 1.80f));
 
         DrawHeader();
         DrawGauges();
-
         DrawSection(UiText.Rotation, new Vector4(1.00f, 0.80f, 0.30f, 1f), () => DrawAdviceList(rotationSnapshot, 3));
-        if (config.ShowReactions) DrawSection(UiText.Reactions, new Vector4(1.00f, 0.45f, 0.40f, 1f), () => DrawAdviceList(reactionSnapshot, 2));
-        if (config.ShowMitigation) DrawSection(UiText.Mitigation, new Vector4(0.40f, 0.75f, 1.00f, 1f), () => DrawAdviceList(mitigationSnapshot, 2));
+        if (config.ShowReactions && reactionSnapshot.Count > 0)
+            DrawSection(UiText.Reactions, new Vector4(1.00f, 0.45f, 0.40f, 1f), () => DrawAdviceList(reactionSnapshot, 2));
+        if (config.ShowMitigation && mitigationSnapshot.Count > 0)
+            DrawSection(UiText.Mitigation, new Vector4(0.40f, 0.75f, 1.00f, 1f), () => DrawAdviceList(mitigationSnapshot, 2));
         if (levelingSnapshot.Count > 0)
             DrawSection(UiText.Leveling, new Vector4(0.75f, 0.55f, 1.00f, 1f), DrawLevelingList);
         if (config.ShowCaptureHud && !string.IsNullOrEmpty(captureText))
@@ -84,23 +84,32 @@ public sealed class OverlayWindow : Window
         ImGui.SameLine();
         ImGui.TextDisabled(state.Player is not null ? $"Lv{state.Level}" : UiText.NoPlayer);
         ImGui.SameLine();
+        if (ImGui.SmallButton("-")) SetScale(config.OverlayScale - 0.10f);
+        ImGui.SameLine();
+        if (ImGui.SmallButton($"{config.OverlayScale * 100f:0}%")) SetScale(1.0f);
+        ImGui.SameLine();
+        if (ImGui.SmallButton("+")) SetScale(config.OverlayScale + 0.10f);
+        ImGui.SameLine();
         if (ImGui.SmallButton(UiText.HideOverlay)) UiNavigator.ToggleOverlay?.Invoke();
         ImGui.Separator();
+    }
+
+    private void SetScale(float value)
+    {
+        config.OverlayScale = Math.Clamp(value, 0.60f, 1.80f);
+        config.Save();
     }
 
     private void DrawGauges()
     {
         var tpFrac = Math.Clamp(state.PlayerTp / 250f, 0f, 1f);
         var famFrac = Math.Clamp(state.FamiliarTp / 250f, 0f, 1f);
-
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(1.0f, 0.72f, 0.20f, 1f));
         ImGui.ProgressBar(tpFrac, new Vector2(-1, 16), $"TP {state.PlayerTp}/250");
         ImGui.PopStyleColor();
-
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(0.35f, 0.70f, 1.0f, 1f));
         ImGui.ProgressBar(famFrac, new Vector2(-1, 16), $"{UiText.FamiliarLabel} {state.FamiliarTp}/250");
         ImGui.PopStyleColor();
-
         ImGui.TextDisabled($"{state.ActiveKinship}   {BestiaryCatalog.BeastModeName(state.ActiveKinship)}");
         ImGui.Spacing();
     }
@@ -119,9 +128,7 @@ public sealed class OverlayWindow : Window
 
     private static void DrawAdviceList(List<Advice> advice, int max)
     {
-        var shown = advice.Take(max).ToList();
-        if (shown.Count == 0) { ImGui.TextDisabled("-"); return; }
-        foreach (var item in shown)
+        foreach (var item in advice.Take(max))
         {
             ImGui.BulletText(item.Action);
             ImGui.SameLine();
@@ -135,18 +142,11 @@ public sealed class OverlayWindow : Window
         {
             var spot = levelingSnapshot[i];
             var tag = spot.Captured ? UiText.Captured : UiText.Missing;
-            if (i == 0)
-            {
-                ImGui.TextColored(new Vector4(0.85f, 0.70f, 1f, 1f), $"-> Lv{spot.Level} {spot.Name}");
-                ImGui.SameLine();
-                ImGui.TextDisabled($"({tag}) {spot.Location}");
-            }
-            else
-            {
-                ImGui.BulletText($"Lv{spot.Level} {spot.Name} ({tag})");
-                ImGui.SameLine();
-                ImGui.TextDisabled(spot.Location);
-            }
+            var color = i == 0 ? new Vector4(0.85f, 0.70f, 1f, 1f) : new Vector4(0.90f, 0.90f, 0.90f, 1f);
+            ImGui.TextColored(color, i == 0 ? $"-> Lv{spot.Level} {spot.Name} ({tag})" : $"• Lv{spot.Level} {spot.Name} ({tag})");
+            ImGui.Indent(12);
+            ImGui.TextWrapped(spot.Location);
+            ImGui.Unindent(12);
         }
     }
 
