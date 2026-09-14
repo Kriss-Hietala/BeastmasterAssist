@@ -32,7 +32,7 @@ public sealed class BestiaryWindow : Window
         ImGui.SameLine();
         ImGui.ProgressBar(capture.CapturedCount / 50f, new Vector2(220, 18), UiText.CapturedCount(capture.CapturedCount));
         ImGui.SameLine();
-        ImGui.TextDisabled($"{BestiaryCatalog.All.Count - capture.CapturedCount} {UiText.Missing.ToLowerInvariant()}");
+        ImGui.TextDisabled(UiText.MissingCount(BestiaryCatalog.All.Count - capture.CapturedCount));
         Tabs();
         ImGui.InputText(UiText.Search, ref filter, 64);
         ImGui.SameLine();
@@ -63,10 +63,11 @@ public sealed class BestiaryWindow : Window
             var have = capture.Has(b.Id);
             if ((tab == 1 && have) || (tab == 2 && !have) || (tab == 3 && !b.Duty)) continue;
             if (classFilter > 0 && (int)b.Class != classFilter) continue;
-            if (!string.IsNullOrWhiteSpace(filter) && !b.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) && !b.Location.Contains(filter, StringComparison.OrdinalIgnoreCase)) continue;
-            var label = $"{(have ? "✓" : "○")} #{b.Id:00}  {b.Name}";
+            var loc = b.LocalizedLocation(UiText.Polish);
+            if (!string.IsNullOrWhiteSpace(filter) && !b.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) && !loc.Contains(filter, StringComparison.OrdinalIgnoreCase)) continue;
+            var label = $"{(have ? "[x]" : "[ ]")} #{b.Id:00}  {b.Name}";
             if (ImGui.Selectable(label, selectedId == b.Id)) selectedId = b.Id;
-            ImGui.SameLine(); ImGui.TextDisabled($"{b.Class} · {b.Affinity}");
+            ImGui.SameLine(); ImGui.TextDisabled($"{b.Class} - {b.Affinity}");
         }
         ImGui.EndChild();
     }
@@ -80,10 +81,21 @@ public sealed class BestiaryWindow : Window
         ImGui.SameLine();
         if (ImGui.Button(have ? UiText.Captured : UiText.Missing)) capture.Toggle(b.Id);
         ImGui.Separator();
-        Row(UiText.Location, b.Location); Row(UiText.Level, $"Lv {b.Level}"); Row(UiText.Kinship, $"{b.Class} — {BestiaryCatalog.BeastModeName(b.Class)}"); Row(UiText.Affinity, b.Affinity.ToString());
-        ImGui.Separator(); Row(UiText.Trick, b.Trick); Row(UiText.TemperedRelease, b.TemperedRelease);
-        if (b.Duty) { ImGui.Separator(); ImGui.TextColored(new Vector4(1f,.58f,.34f,1f), UiText.Duty); ImGui.TextWrapped(b.GourdHint ?? "Duty capture."); }
-        ImGui.Separator(); ImGui.TextWrapped(b.Notes);
+        Row(UiText.Location, b.LocalizedLocation(UiText.Polish));
+        Row(UiText.Level, $"Lv {b.Level}");
+        Row(UiText.KinshipLabel, $"{b.Class} - {BestiaryCatalog.BeastModeName(b.Class)}");
+        Row(UiText.AffinityLabel, b.Affinity.ToString());
+        ImGui.Separator();
+        Row(UiText.Trick, b.Trick);
+        Row(UiText.TemperedRelease, b.TemperedRelease);
+        if (b.Duty)
+        {
+            ImGui.Separator();
+            ImGui.TextColored(new Vector4(1f, .58f, .34f, 1f), UiText.Duty);
+            ImGui.TextWrapped(b.LocalizedGourdHint(UiText.Polish) ?? UiText.T("Lapanie w duty.", "Duty capture."));
+        }
+        ImGui.Separator();
+        ImGui.TextWrapped(b.LocalizedNotes(UiText.Polish));
         ImGui.EndChild();
     }
 
