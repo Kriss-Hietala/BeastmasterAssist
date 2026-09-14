@@ -1,0 +1,14 @@
+{
+  "Author": "Kriss-Hietala",
+  "Name": "Beastmaster Assist",
+  "Punchline": "Rotation, reactions, mitigation, bestiary and Beastmaster progress.",
+  "Description": "Limited-job Beastmaster assistant (Patch 7.56): Instinctual Combo overlay, Kinship reactions and mitigation, 50-pact Master's Bestiary tracking, and exclusive gear / achievement progress. Does not press abilities.",
+  "InternalName": "BeastmasterAssist",
+  "RepoUrl": "https://github.com/Kriss-Hietala/BeastmasterAssist",
+  "ApplicableVersion": "any",
+  "DalamudApiLevel": 15,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "Tags": ["beastmaster", "bst", "rotation", "bestiary", "crucible"]
+}
