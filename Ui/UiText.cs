@@ -1,9 +1,16 @@
 namespace BeastmasterAssist.Ui;
 
-/// <summary>Centralny katalog tekstow UI. Nazwy akcji i bestii z klienta FFXIV pozostaja po angielsku.</summary>
+/// <summary>Centralny katalog tekstow UI. Zrodlem prawdy jezyka jest Data.Loc.Polish,
+/// zeby overlay, rotacja, reakcje, mitygacja i lapanie zawsze byly zsynchronizowane.
+/// Nazwy akcji i bestii z klienta FFXIV pozostaja po angielsku.</summary>
 public static class UiText
 {
-    public static bool Polish { get; set; } = true;
+    public static bool Polish
+    {
+        get => Data.Loc.Polish;
+        set => Data.Loc.Polish = value;
+    }
+
     public static string T(string pl, string en) => Polish ? pl : en;
 
     public static string Bestiary => T("Bestiariusz", "Bestiary");
@@ -45,6 +52,7 @@ public static class UiText
     public static string ShowReactionsOpt => T("Pokazuj reakcje", "Show reactions");
     public static string ShowMitigationOpt => T("Pokazuj mitygacje", "Show mitigation");
     public static string ShowCaptureOpt => T("Pokazuj HUD lapania", "Show capture HUD");
+    public static string ShowMarkersOpt => T("Pokazuj ikonki nad mobami do zlapania", "Show nameplate markers on catchable mobs");
     public static string HoldTpOpt => T("Trzymaj TP na Universality", "Hold TP for Universality");
     public static string ChatNotifyOpt => T("Powiadamiaj na czacie o pakcie", "Announce pacts in chat");
     public static string Rotation => T("Rotacja", "Rotation");
@@ -52,14 +60,11 @@ public static class UiText
     public static string Mitigation => T("Mitygacja", "Mitigation");
     public static string CommandHelp => T("Pomoc i komendy", "Help and commands");
     public static string NoPlayer => T("Brak gracza", "No player");
+    public static string FamiliarLabel => T("Familiar", "Familiar");
     public static string Commands => T(
         "/bstassist lub /bestia - otwiera Bestiariusz\n/bstassist overlay - wlacza lub ukrywa overlay\n/bstassist progress - otwiera Progres\n/bstassist config - otwiera Ustawienia\n/bstassist debug - zapisuje ID akcji do /xllog",
         "/bstassist or /bestia - opens Bestiary\n/bstassist overlay - toggles the overlay\n/bstassist progress - opens Progress\n/bstassist config - opens Settings\n/bstassist debug - writes action IDs to /xllog");
     public static string PluginDisclaimer => T("Plugin nie wciska skilli. To nakladka i tracker.", "The plugin never presses abilities. It is an overlay and tracker only.");
 
-    public static void Sync(Configuration config)
-    {
-        Polish = config.PreferPolishUi;
-        Data.Loc.Polish = config.PreferPolishUi;
-    }
+    public static void Sync(Configuration config) => Data.Loc.Polish = config.PreferPolishUi;
 }

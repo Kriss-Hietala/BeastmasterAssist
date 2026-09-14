@@ -50,7 +50,7 @@ public sealed class OverlayWindow : Window
         ImGui.SetWindowFontScale(Math.Clamp(config.OverlayScale * 1.28f, 1.0f, 2.0f));
         ImGui.TextColored(new Vector4(1f, .78f, .25f, 1f), "BEASTMASTER ASSIST");
         ImGui.SameLine();
-        ImGui.TextDisabled(state.Player is not null ? $"Lv{state.Level}" : "No player");
+        ImGui.TextDisabled(state.Player is not null ? $"Lv{state.Level}" : UiText.NoPlayer);
         ImGui.SameLine();
         if (ImGui.Button(UiText.HideOverlay)) UiNavigator.ToggleOverlay?.Invoke();
         ImGui.TextDisabled(gaugeText);
@@ -66,7 +66,7 @@ public sealed class OverlayWindow : Window
     {
         if (DateTime.UtcNow < nextSnapshotAt) return;
         nextSnapshotAt = DateTime.UtcNow.AddMilliseconds(750);
-        gaugeText = $"TP {state.PlayerTp}/250    Familiar {state.FamiliarTp}/250    {state.ActiveKinship}";
+        gaugeText = $"TP {state.PlayerTp}/250    {UiText.FamiliarLabel} {state.FamiliarTp}/250    {state.ActiveKinship}";
         captureText = capture.CapturePrompt;
         rotationSnapshot = rotation.Advise(state);
         reactionSnapshot = reactions.Advise(state);
