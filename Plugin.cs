@@ -19,6 +19,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly IFramework framework;
     private readonly IChatGui chat;
     private readonly IClientState clientState;
+    private readonly IObjectTable objects;
     private readonly IPluginLog log;
     private readonly WindowSystem windows = new("BeastmasterAssist");
 
@@ -52,6 +53,7 @@ public sealed class Plugin : IDalamudPlugin
         this.framework = framework;
         this.chat = chat;
         this.clientState = clientState;
+        this.objects = objects;
         this.log = log;
 
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
@@ -60,7 +62,7 @@ public sealed class Plugin : IDalamudPlugin
         gameData = new GameData(data, log);
         gameData.Resolve();
 
-        combatState = new CombatState(clientState, targets, condition, gameData, log);
+        combatState = new CombatState(objects, targets, condition, gameData, log);
         rotation = new RotationAdvisor(gameData, config);
         reactions = new ReactionAdvisor(gameData);
         mitigation = new MitigationAdvisor(gameData);
@@ -111,7 +113,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnUpdate(IFramework _)
     {
-        var onJob = gameData.IsBeastmaster(clientState.LocalPlayer);
+        var onJob = gameData.IsBeastmaster(objects.LocalPlayer);
         overlay.IsOpen = config.OverlayEnabled && (!config.ShowOnlyOnBeastmaster || onJob);
         if (!onJob && config.ShowOnlyOnBeastmaster)
             return;

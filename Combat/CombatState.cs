@@ -9,7 +9,7 @@ namespace BeastmasterAssist.Combat;
 
 public sealed class CombatState
 {
-    private readonly IClientState clientState;
+    private readonly IObjectTable objects;
     private readonly ITargetManager targets;
     private readonly ICondition condition;
     private readonly GameData data;
@@ -43,9 +43,9 @@ public sealed class CombatState
     public int FamiliarTp { get; private set; }
     public List<string> PlayerStatusNames { get; } = [];
 
-    public CombatState(IClientState clientState, ITargetManager targets, ICondition condition, GameData data, IPluginLog log)
+    public CombatState(IObjectTable objects, ITargetManager targets, ICondition condition, GameData data, IPluginLog log)
     {
-        this.clientState = clientState;
+        this.objects = objects;
         this.targets = targets;
         this.condition = condition;
         this.data = data;
@@ -53,7 +53,7 @@ public sealed class CombatState
 
     public void Tick()
     {
-        Player = clientState.LocalPlayer;
+        Player = objects.LocalPlayer;
         Target = targets.Target as IBattleChara;
         InCombat = condition[ConditionFlag.InCombat];
         PlayerStatusNames.Clear();
@@ -91,8 +91,13 @@ public sealed class CombatState
         LastHeart = ReadHeart(Player, out var hr);
         HeartRemain = hr;
         FamiliarOut = HasOneWithNature || HasLingeringVantage || Has(Player, "Cover");
-        HasInterestCaptured = Target is not null && HasRemain(Target, "Interest Captured", out var ic);
-        InterestCapturedRemain = ic;
+        HasInterestCaptured = false;
+        InterestCapturedRemain = 0;
+        if (Target is not null)
+        {
+            HasInterestCaptured = HasRemain(Target, "Interest Captured", out var capturedRemain);
+            InterestCapturedRemain = capturedRemain;
+        }
 
         foreach (var st in Player.StatusList)
         {
@@ -198,7 +203,7 @@ public sealed class CombatState
         {
             var n = st.GameData.ValueNullable?.Name.ToString();
             if (n is not null && n.Contains(name, StringComparison.OrdinalIgnoreCase))
-                return Math.Max(1, st.Param);
+                return Math.Max(1, (int)st.Param);
         }
         return 0;
     }

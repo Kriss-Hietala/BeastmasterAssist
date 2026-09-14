@@ -1,7 +1,6 @@
 using BeastmasterAssist.Combat;
 using BeastmasterAssist.Data;
 using Dalamud.Game.Text;
-using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
 
 namespace BeastmasterAssist.Tracking;
@@ -22,8 +21,8 @@ public sealed class CaptureTracker
         this.objects = objects;
     }
 
-    public void Attach() => chat.ChatMessage += OnChat;
-    public void Detach() => chat.ChatMessage -= OnChat;
+    public void Attach() => chat.ChatMessageUnhandled += OnChat;
+    public void Detach() => chat.ChatMessageUnhandled -= OnChat;
     public int CapturedCount => config.CapturedBeastIds.Count;
     public bool Has(int id) => config.CapturedBeastIds.Contains(id);
 
@@ -74,9 +73,9 @@ public sealed class CaptureTracker
             name.Contains(b.Monster, StringComparison.OrdinalIgnoreCase) ||
             name.Contains(b.Name, StringComparison.OrdinalIgnoreCase));
 
-    private void OnChat(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool handled)
+    private void OnChat(IChatMessage chatMessage)
     {
-        var text = message.TextValue;
+        var text = chatMessage.Message.TextValue;
         if (!(text.Contains("pact", StringComparison.OrdinalIgnoreCase) || text.Contains("Bestiary", StringComparison.OrdinalIgnoreCase)))
             return;
         foreach (var b in BestiaryCatalog.All)
