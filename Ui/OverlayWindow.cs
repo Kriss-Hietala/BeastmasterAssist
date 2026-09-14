@@ -34,7 +34,7 @@ public sealed class OverlayWindow : Window
         this.capture = capture;
         this.leveling = leveling;
         RespectCloseHotkey = false;
-        Size = new Vector2(440, 0);
+        Size = new Vector2(400, 0);
         SizeCondition = ImGuiCond.FirstUseEver;
     }
 
@@ -44,81 +44,77 @@ public sealed class OverlayWindow : Window
         if (config.LockOverlay) Flags |= ImGuiWindowFlags.NoMove;
         ImGui.SetNextWindowBgAlpha(0.90f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 10f);
-        ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 8f);
         ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 6f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(14, 12));
-        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(6, 8));
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(6, 6));
     }
 
-    public override void PostDraw() => ImGui.PopStyleVar(5);
+    public override void PostDraw() => ImGui.PopStyleVar(4);
 
     public override void Draw()
     {
         UiText.Sync(config);
         RefreshSnapshot();
-        var scale = Math.Clamp(config.OverlayScale * 1.15f, 1.0f, 2.0f);
+        var scale = Math.Clamp(config.OverlayScale, 0.6f, 1.8f);
         ImGui.SetWindowFontScale(scale);
 
-        DrawHeader(scale);
-        DrawGauges(scale);
+        DrawHeader();
+        DrawGauges();
 
-        DrawCard(UiText.Rotation, new Vector4(1.00f, 0.80f, 0.30f, 1f), () => DrawAdviceList(rotationSnapshot, 3));
-        if (config.ShowReactions) DrawCard(UiText.Reactions, new Vector4(1.00f, 0.45f, 0.40f, 1f), () => DrawAdviceList(reactionSnapshot, 2));
-        if (config.ShowMitigation) DrawCard(UiText.Mitigation, new Vector4(0.40f, 0.75f, 1.00f, 1f), () => DrawAdviceList(mitigationSnapshot, 2));
-        if (config.ShowCaptureHud && !string.IsNullOrEmpty(captureText))
-            DrawCard(UiText.Capture, new Vector4(0.55f, 1.00f, 0.55f, 1f), () => ImGui.TextWrapped(captureText));
+        DrawSection(UiText.Rotation, new Vector4(1.00f, 0.80f, 0.30f, 1f), () => DrawAdviceList(rotationSnapshot, 3));
+        if (config.ShowReactions) DrawSection(UiText.Reactions, new Vector4(1.00f, 0.45f, 0.40f, 1f), () => DrawAdviceList(reactionSnapshot, 2));
+        if (config.ShowMitigation) DrawSection(UiText.Mitigation, new Vector4(0.40f, 0.75f, 1.00f, 1f), () => DrawAdviceList(mitigationSnapshot, 2));
         if (levelingSnapshot.Count > 0)
-            DrawCard(UiText.Leveling, new Vector4(0.75f, 0.55f, 1.00f, 1f), DrawLevelingList);
+            DrawSection(UiText.Leveling, new Vector4(0.75f, 0.55f, 1.00f, 1f), DrawLevelingList);
+        if (config.ShowCaptureHud && !string.IsNullOrEmpty(captureText))
+            DrawSection(UiText.Capture, new Vector4(0.55f, 1.00f, 0.55f, 1f), () => ImGui.TextWrapped(captureText));
 
         ImGui.SetWindowFontScale(1f);
     }
 
-    private void DrawHeader(float scale)
+    private void DrawHeader()
     {
         var accent = state.InCombat ? new Vector4(1f, 0.35f, 0.30f, 1f) : new Vector4(0.35f, 0.85f, 0.45f, 1f);
         var drawList = ImGui.GetWindowDrawList();
         var origin = ImGui.GetCursorScreenPos();
-        drawList.AddCircleFilled(origin + new Vector2(6, 8 * scale), 5f * scale, ImGui.ColorConvertFloat4ToU32(accent));
-        ImGui.Dummy(new Vector2(16 * scale, 0));
+        drawList.AddCircleFilled(origin + new Vector2(6, 8), 5f, ImGui.ColorConvertFloat4ToU32(accent));
+        ImGui.Dummy(new Vector2(16, 0));
         ImGui.SameLine();
         ImGui.TextColored(new Vector4(1f, 0.85f, 0.35f, 1f), "BEASTMASTER ASSIST");
         ImGui.SameLine();
         ImGui.TextDisabled(state.Player is not null ? $"Lv{state.Level}" : UiText.NoPlayer);
+        ImGui.SameLine();
         if (ImGui.SmallButton(UiText.HideOverlay)) UiNavigator.ToggleOverlay?.Invoke();
         ImGui.Separator();
     }
 
-    private void DrawGauges(float scale)
+    private void DrawGauges()
     {
         var tpFrac = Math.Clamp(state.PlayerTp / 250f, 0f, 1f);
         var famFrac = Math.Clamp(state.FamiliarTp / 250f, 0f, 1f);
-        var barHeight = 16f * scale;
 
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(1.0f, 0.72f, 0.20f, 1f));
-        ImGui.ProgressBar(tpFrac, new Vector2(-1, barHeight), $"TP {state.PlayerTp}/250");
+        ImGui.ProgressBar(tpFrac, new Vector2(-1, 16), $"TP {state.PlayerTp}/250");
         ImGui.PopStyleColor();
 
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(0.35f, 0.70f, 1.0f, 1f));
-        ImGui.ProgressBar(famFrac, new Vector2(-1, barHeight), $"{UiText.FamiliarLabel} {state.FamiliarTp}/250");
+        ImGui.ProgressBar(famFrac, new Vector2(-1, 16), $"{UiText.FamiliarLabel} {state.FamiliarTp}/250");
         ImGui.PopStyleColor();
 
         ImGui.TextDisabled($"{state.ActiveKinship}   {BestiaryCatalog.BeastModeName(state.ActiveKinship)}");
-        ImGui.Dummy(new Vector2(0, 4f * scale));
+        ImGui.Spacing();
     }
 
-    private static void DrawCard(string title, Vector4 accent, Action body)
+    private static void DrawSection(string title, Vector4 accent, Action body)
     {
-        ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(accent.X, accent.Y, accent.Z, 0.06f));
-        ImGui.PushStyleColor(ImGuiCol.Border, accent);
-        ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1.4f);
-        ImGui.BeginChild($"card_{title}", new Vector2(0, 0), true, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
+        ImGui.Spacing();
         ImGui.TextColored(accent, title.ToUpperInvariant());
+        ImGui.PushStyleColor(ImGuiCol.Separator, accent);
         ImGui.Separator();
+        ImGui.PopStyleColor();
+        ImGui.Indent(8);
         body();
-        ImGui.EndChild();
-        ImGui.PopStyleVar();
-        ImGui.PopStyleColor(2);
-        ImGui.Dummy(new Vector2(0, 2));
+        ImGui.Unindent(8);
     }
 
     private static void DrawAdviceList(List<Advice> advice, int max)
@@ -135,12 +131,22 @@ public sealed class OverlayWindow : Window
 
     private void DrawLevelingList()
     {
-        foreach (var spot in levelingSnapshot)
+        for (var i = 0; i < levelingSnapshot.Count; i++)
         {
+            var spot = levelingSnapshot[i];
             var tag = spot.Captured ? UiText.Captured : UiText.Missing;
-            ImGui.BulletText($"Lv{spot.Level} {spot.Name} ({tag})");
-            ImGui.SameLine();
-            ImGui.TextDisabled(spot.Location);
+            if (i == 0)
+            {
+                ImGui.TextColored(new Vector4(0.85f, 0.70f, 1f, 1f), $"-> Lv{spot.Level} {spot.Name}");
+                ImGui.SameLine();
+                ImGui.TextDisabled($"({tag}) {spot.Location}");
+            }
+            else
+            {
+                ImGui.BulletText($"Lv{spot.Level} {spot.Name} ({tag})");
+                ImGui.SameLine();
+                ImGui.TextDisabled(spot.Location);
+            }
         }
     }
 

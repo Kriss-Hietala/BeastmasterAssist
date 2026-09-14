@@ -48,7 +48,7 @@ public sealed class Plugin : IDalamudPlugin
         nameplateMarker = new NameplateMarker(config, namePlateGui, capture);
         overlay = new OverlayWindow(config, combatState, rotation, reactions, mitigation, capture, leveling); bestiary = new BestiaryWindow(config, capture, gameData); progressWindow = new ProgressWindow(config, progress, gameData); configWindow = new ConfigWindow(config);
         windows.AddWindow(overlay); windows.AddWindow(bestiary); windows.AddWindow(progressWindow); windows.AddWindow(configWindow);
-        UiNavigator.OpenBestiary = () => bestiary.IsOpen = true; UiNavigator.OpenProgress = () => progressWindow.IsOpen = true; UiNavigator.OpenSettings = () => configWindow.IsOpen = true;
+        UiNavigator.OpenBestiary = () => bestiary.IsOpen = !bestiary.IsOpen; UiNavigator.OpenProgress = () => progressWindow.IsOpen = !progressWindow.IsOpen; UiNavigator.OpenSettings = () => configWindow.IsOpen = !configWindow.IsOpen;
         UiNavigator.ToggleOverlay = () => { config.OverlayEnabled = !config.OverlayEnabled; config.Save(); };
         commands.AddHandler(Command, new CommandInfo(OnCommand) { HelpMessage = "Beastmaster Assist: overlay|bestiary|progress|config|debug" }); commands.AddHandler(CommandAlias, new CommandInfo(OnCommand) { HelpMessage = "Alias Beastmaster Assist." });
         pluginInterface.UiBuilder.Draw += windows.Draw; pluginInterface.UiBuilder.OpenConfigUi += OpenConfig; pluginInterface.UiBuilder.OpenMainUi += OpenBestiary; framework.Update += OnUpdate; capture.Attach(); nameplateMarker.Attach(); progress.Refresh();
