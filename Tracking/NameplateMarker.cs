@@ -1,5 +1,4 @@
 using BeastmasterAssist.Data;
-using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.Gui.NamePlate;
 using Dalamud.Plugin.Services;
 
@@ -13,7 +12,7 @@ namespace BeastmasterAssist.Tracking;
 public sealed class NameplateMarker
 {
     // FFXIV hunt-mark style icon (bronze marker). Adjust here if you prefer a different icon id.
-    private const uint MarkerIconId = 60092;
+    private const int MarkerIconId = 60092;
 
     private readonly Configuration config;
     private readonly INamePlateGui namePlateGui;
@@ -35,7 +34,8 @@ public sealed class NameplateMarker
 
         foreach (var handler in handlers)
         {
-            if (handler.NamePlateKind != NamePlateKind.BattleNpc) continue;
+            if (handler.NamePlateKind != NamePlateKind.BattleNpcEnemy && handler.NamePlateKind != NamePlateKind.BattleNpcFriendly)
+                continue;
 
             var name = handler.Name.TextValue;
             if (string.IsNullOrWhiteSpace(name)) continue;
