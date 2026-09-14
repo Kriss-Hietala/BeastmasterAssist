@@ -17,7 +17,6 @@ public sealed class OverlayWindow : Window
     private readonly CaptureTracker capture;
     private readonly LevelingAdvisor leveling;
     private DateTime nextSnapshotAt = DateTime.MinValue;
-    private string gaugeText = "";
     private string captureText = "";
     private List<Advice> rotationSnapshot = [];
     private List<Advice> reactionSnapshot = [];
@@ -41,14 +40,14 @@ public sealed class OverlayWindow : Window
 
     public override void PreDraw()
     {
-        Flags = ImGuiWindowFlags.NoCollapse;
+        Flags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
         if (config.LockOverlay) Flags |= ImGuiWindowFlags.NoMove;
         ImGui.SetNextWindowBgAlpha(0.90f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 10f);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 8f);
         ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 6f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(14, 12));
-        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(6, 6));
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(6, 8));
     }
 
     public override void PostDraw() => ImGui.PopStyleVar(5);
@@ -57,10 +56,11 @@ public sealed class OverlayWindow : Window
     {
         UiText.Sync(config);
         RefreshSnapshot();
-        ImGui.SetWindowFontScale(Math.Clamp(config.OverlayScale * 1.15f, 1.0f, 2.0f));
+        var scale = Math.Clamp(config.OverlayScale * 1.15f, 1.0f, 2.0f);
+        ImGui.SetWindowFontScale(scale);
 
-        DrawHeader();
-        DrawGauges();
+        DrawHeader(scale);
+        DrawGauges(scale);
 
         DrawCard(UiText.Rotation, new Vector4(1.00f, 0.80f, 0.30f, 1f), () => DrawAdviceList(rotationSnapshot, 3));
         if (config.ShowReactions) DrawCard(UiText.Reactions, new Vector4(1.00f, 0.45f, 0.40f, 1f), () => DrawAdviceList(reactionSnapshot, 2));
@@ -73,54 +73,52 @@ public sealed class OverlayWindow : Window
         ImGui.SetWindowFontScale(1f);
     }
 
-    private void DrawHeader()
+    private void DrawHeader(float scale)
     {
         var accent = state.InCombat ? new Vector4(1f, 0.35f, 0.30f, 1f) : new Vector4(0.35f, 0.85f, 0.45f, 1f);
         var drawList = ImGui.GetWindowDrawList();
         var origin = ImGui.GetCursorScreenPos();
-        drawList.AddCircleFilled(origin + new Vector2(6, 8), 5f, ImGui.ColorConvertFloat4ToU32(accent));
-        ImGui.Dummy(new Vector2(16, 0));
+        drawList.AddCircleFilled(origin + new Vector2(6, 8 * scale), 5f * scale, ImGui.ColorConvertFloat4ToU32(accent));
+        ImGui.Dummy(new Vector2(16 * scale, 0));
         ImGui.SameLine();
         ImGui.TextColored(new Vector4(1f, 0.85f, 0.35f, 1f), "BEASTMASTER ASSIST");
         ImGui.SameLine();
         ImGui.TextDisabled(state.Player is not null ? $"Lv{state.Level}" : UiText.NoPlayer);
-        ImGui.SameLine(ImGui.GetWindowWidth() - 110f);
         if (ImGui.SmallButton(UiText.HideOverlay)) UiNavigator.ToggleOverlay?.Invoke();
         ImGui.Separator();
     }
 
-    private void DrawGauges()
+    private void DrawGauges(float scale)
     {
         var tpFrac = Math.Clamp(state.PlayerTp / 250f, 0f, 1f);
         var famFrac = Math.Clamp(state.FamiliarTp / 250f, 0f, 1f);
+        var barHeight = 16f * scale;
 
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(1.0f, 0.72f, 0.20f, 1f));
-        ImGui.ProgressBar(tpFrac, new Vector2(-1, 14), $"TP {state.PlayerTp}/250");
+        ImGui.ProgressBar(tpFrac, new Vector2(-1, barHeight), $"TP {state.PlayerTp}/250");
         ImGui.PopStyleColor();
 
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(0.35f, 0.70f, 1.0f, 1f));
-        ImGui.ProgressBar(famFrac, new Vector2(-1, 14), $"{UiText.FamiliarLabel} {state.FamiliarTp}/250");
+        ImGui.ProgressBar(famFrac, new Vector2(-1, barHeight), $"{UiText.FamiliarLabel} {state.FamiliarTp}/250");
         ImGui.PopStyleColor();
 
         ImGui.TextDisabled($"{state.ActiveKinship}   {BestiaryCatalog.BeastModeName(state.ActiveKinship)}");
-        ImGui.Spacing();
+        ImGui.Dummy(new Vector2(0, 4f * scale));
     }
 
     private static void DrawCard(string title, Vector4 accent, Action body)
     {
-        ImGui.Spacing();
-        var drawList = ImGui.GetWindowDrawList();
-        var cursor = ImGui.GetCursorScreenPos();
-
-        ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(accent.X, accent.Y, accent.Z, 0.07f));
-        ImGui.BeginChild($"card_{title}", new Vector2(0, 0), true, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar);
-        drawList.AddRectFilled(cursor, cursor + new Vector2(4, ImGui.GetFrameHeightWithSpacing() * 3), ImGui.ColorConvertFloat4ToU32(accent));
-        ImGui.Indent(10);
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(accent.X, accent.Y, accent.Z, 0.06f));
+        ImGui.PushStyleColor(ImGuiCol.Border, accent);
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1.4f);
+        ImGui.BeginChild($"card_{title}", new Vector2(0, 0), true, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
         ImGui.TextColored(accent, title.ToUpperInvariant());
+        ImGui.Separator();
         body();
-        ImGui.Unindent(10);
         ImGui.EndChild();
-        ImGui.PopStyleColor();
+        ImGui.PopStyleVar();
+        ImGui.PopStyleColor(2);
+        ImGui.Dummy(new Vector2(0, 2));
     }
 
     private static void DrawAdviceList(List<Advice> advice, int max)
@@ -150,7 +148,6 @@ public sealed class OverlayWindow : Window
     {
         if (DateTime.UtcNow < nextSnapshotAt) return;
         nextSnapshotAt = DateTime.UtcNow.AddMilliseconds(750);
-        gaugeText = $"TP {state.PlayerTp}/250    {UiText.FamiliarLabel} {state.FamiliarTp}/250    {state.ActiveKinship}";
         captureText = capture.CapturePrompt;
         rotationSnapshot = rotation.Advise(state);
         reactionSnapshot = reactions.Advise(state);
