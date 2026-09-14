@@ -27,6 +27,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly RotationAdvisor rotation;
     private readonly ReactionAdvisor reactions;
     private readonly MitigationAdvisor mitigation;
+    private readonly LevelingAdvisor leveling;
     private readonly CaptureTracker capture;
     private readonly ProgressTracker progress;
     private readonly NameplateMarker nameplateMarker;
@@ -42,10 +43,10 @@ public sealed class Plugin : IDalamudPlugin
         UiText.Sync(config);
         gameData = new GameData(data, log); gameData.Resolve();
         combatState = new CombatState(objects, targets, condition, gameData, log);
-        rotation = new RotationAdvisor(gameData, config); reactions = new ReactionAdvisor(gameData); mitigation = new MitigationAdvisor(gameData);
+        rotation = new RotationAdvisor(gameData, config); reactions = new ReactionAdvisor(gameData); mitigation = new MitigationAdvisor(gameData); leveling = new LevelingAdvisor();
         capture = new CaptureTracker(config, gameData, chat, clientState, objects, log); progress = new ProgressTracker(config, gameData, data, clientState, log);
         nameplateMarker = new NameplateMarker(config, namePlateGui, capture);
-        overlay = new OverlayWindow(config, combatState, rotation, reactions, mitigation, capture); bestiary = new BestiaryWindow(config, capture, gameData); progressWindow = new ProgressWindow(config, progress, gameData); configWindow = new ConfigWindow(config);
+        overlay = new OverlayWindow(config, combatState, rotation, reactions, mitigation, capture, leveling); bestiary = new BestiaryWindow(config, capture, gameData); progressWindow = new ProgressWindow(config, progress, gameData); configWindow = new ConfigWindow(config);
         windows.AddWindow(overlay); windows.AddWindow(bestiary); windows.AddWindow(progressWindow); windows.AddWindow(configWindow);
         UiNavigator.OpenBestiary = () => bestiary.IsOpen = true; UiNavigator.OpenProgress = () => progressWindow.IsOpen = true; UiNavigator.OpenSettings = () => configWindow.IsOpen = true;
         UiNavigator.ToggleOverlay = () => { config.OverlayEnabled = !config.OverlayEnabled; config.Save(); };

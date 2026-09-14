@@ -32,6 +32,7 @@ public static class UiText
     public static string Trick => "Trick";
     public static string TemperedRelease => "Tempered Release";
     public static string Capture => T("Lapanie", "Capture");
+    public static string Leveling => T("Levelowanie", "Leveling");
     public static string CapturedCount(int count) => T($"Pakty: {count}/50", $"Pacts: {count}/50");
     public static string MissingCount(int count) => T($"{count} brakujacych", $"{count} missing");
     public static string Achievement => T("Achievementy", "Achievements");
