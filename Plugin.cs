@@ -39,6 +39,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         this.pluginInterface = pluginInterface; this.commands = commands; this.framework = framework; this.chat = chat; this.objects = objects; this.log = log;
         config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration(); config.Initialize(pluginInterface);
+        UiText.Sync(config);
         gameData = new GameData(data, log); gameData.Resolve();
         combatState = new CombatState(objects, targets, condition, gameData, log);
         rotation = new RotationAdvisor(gameData, config); reactions = new ReactionAdvisor(gameData); mitigation = new MitigationAdvisor(gameData);
@@ -52,7 +53,7 @@ public sealed class Plugin : IDalamudPlugin
         pluginInterface.UiBuilder.Draw += windows.Draw; pluginInterface.UiBuilder.OpenConfigUi += OpenConfig; pluginInterface.UiBuilder.OpenMainUi += OpenBestiary; framework.Update += OnUpdate; capture.Attach(); nameplateMarker.Attach(); progress.Refresh();
     }
     public void Dispose() { framework.Update -= OnUpdate; pluginInterface.UiBuilder.Draw -= windows.Draw; pluginInterface.UiBuilder.OpenConfigUi -= OpenConfig; pluginInterface.UiBuilder.OpenMainUi -= OpenBestiary; capture.Detach(); nameplateMarker.Detach(); commands.RemoveHandler(Command); commands.RemoveHandler(CommandAlias); windows.RemoveAllWindows(); config.Save(); UiNavigator.OpenBestiary = null; UiNavigator.OpenProgress = null; UiNavigator.OpenSettings = null; UiNavigator.ToggleOverlay = null; }
-    private void OnUpdate(IFramework _) { combatState.Tick(); capture.Tick(combatState); progress.Tick(); overlay.IsOpen = config.OverlayEnabled; }
+    private void OnUpdate(IFramework _) { combatState.Tick(); capture.Tick(combatState); progress.Tick(); nameplateMarker.Tick(); overlay.IsOpen = config.OverlayEnabled; }
     private void OnCommand(string command, string args) { switch ((args ?? string.Empty).Trim().ToLowerInvariant()) { case "bestiary": case "bestiariusz": bestiary.IsOpen = true; break; case "progress": case "progres": progressWindow.IsOpen = true; break; case "config": case "cfg": configWindow.IsOpen = true; break; case "overlay": UiNavigator.ToggleOverlay?.Invoke(); break; case "debug": gameData.Dump(log); chat.Print("[BST Assist] Zrzut akcji Beastmastera poszedl do /xllog."); break; default: bestiary.IsOpen = true; break; } }
     private void OpenConfig() => configWindow.IsOpen = true;
     private void OpenBestiary() => bestiary.IsOpen = true;
