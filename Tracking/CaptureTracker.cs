@@ -1,6 +1,6 @@
 using BeastmasterAssist.Combat;
 using BeastmasterAssist.Data;
-using Dalamud.Game.Text;
+using Dalamud.Game.Chat;
 using Dalamud.Plugin.Services;
 
 namespace BeastmasterAssist.Tracking;
@@ -24,6 +24,7 @@ public sealed class CaptureTracker
     public void Attach() => chat.ChatMessageUnhandled += OnChat;
     public void Detach() => chat.ChatMessageUnhandled -= OnChat;
     public int CapturedCount => config.CapturedBeastIds.Count;
+    public bool Has(int id) => config.CapturedBeastIds.Count;
     public bool Has(int id) => config.CapturedBeastIds.Contains(id);
 
     public void Toggle(int id)
