@@ -38,6 +38,8 @@ public sealed class ConfigWindow : Window
         if (ImGui.Checkbox(UiText.ShowMitigationOpt, ref mit)) { config.ShowMitigation = mit; config.Save(); }
         var cap = config.ShowCaptureHud;
         if (ImGui.Checkbox(UiText.ShowCaptureOpt, ref cap)) { config.ShowCaptureHud = cap; config.Save(); }
+        var markers = config.ShowNameplateMarkers;
+        if (ImGui.Checkbox(UiText.T("Pokazuj ikonki nad mobami do zlapania", "Show nameplate markers on catchable mobs"), ref markers)) { config.ShowNameplateMarkers = markers; config.Save(); }
         var lockOv = config.LockOverlay;
         if (ImGui.Checkbox(UiText.LockOverlay, ref lockOv)) { config.LockOverlay = lockOv; config.Save(); }
         var hold = config.HoldTpForUniversality;

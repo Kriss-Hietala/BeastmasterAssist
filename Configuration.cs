@@ -12,6 +12,7 @@ public sealed class Configuration : IPluginConfiguration
     public bool ShowReactions { get; set; } = true;
     public bool ShowMitigation { get; set; } = true;
     public bool ShowCaptureHud { get; set; } = true;
+    public bool ShowNameplateMarkers { get; set; } = true;
     public bool ShowOnlyOnBeastmaster { get; set; } = true;
     public bool LockOverlay { get; set; }
     public float OverlayScale { get; set; } = 1f;
