@@ -55,10 +55,11 @@ public sealed class OverlayWindow : Window
     {
         UiText.Sync(config);
         RefreshSnapshot();
-        ImGui.SetWindowFontScale(Math.Clamp(config.OverlayScale, 0.60f, 1.80f));
+        var scale = Math.Clamp(config.OverlayScale, 0.60f, 1.80f);
+        ImGui.SetWindowFontScale(scale);
 
-        DrawHeader();
-        DrawGauges();
+        DrawHeader(scale);
+        DrawGauges(scale);
         DrawSection(UiText.Rotation, new Vector4(1.00f, 0.80f, 0.30f, 1f), () => DrawAdviceList(rotationSnapshot, 3));
         if (config.ShowReactions && reactionSnapshot.Count > 0)
             DrawSection(UiText.Reactions, new Vector4(1.00f, 0.45f, 0.40f, 1f), () => DrawAdviceList(reactionSnapshot, 2));
@@ -72,18 +73,18 @@ public sealed class OverlayWindow : Window
         ImGui.SetWindowFontScale(1f);
     }
 
-    private void DrawHeader()
+    private void DrawHeader(float scale)
     {
         var accent = state.InCombat ? new Vector4(1f, 0.35f, 0.30f, 1f) : new Vector4(0.35f, 0.85f, 0.45f, 1f);
         var drawList = ImGui.GetWindowDrawList();
         var origin = ImGui.GetCursorScreenPos();
-        drawList.AddCircleFilled(origin + new Vector2(6, 8), 5f, ImGui.ColorConvertFloat4ToU32(accent));
-        ImGui.Dummy(new Vector2(16, 0));
+        drawList.AddCircleFilled(origin + new Vector2(6f * scale, 8f * scale), 5f * scale, ImGui.ColorConvertFloat4ToU32(accent));
+        ImGui.Dummy(new Vector2(16f * scale, 0));
         ImGui.SameLine();
         ImGui.TextColored(new Vector4(1f, 0.85f, 0.35f, 1f), "BEASTMASTER ASSIST");
         ImGui.SameLine();
         ImGui.TextDisabled(state.Player is not null ? $"Lv{state.Level}" : UiText.NoPlayer);
-        ImGui.SameLine();
+
         if (ImGui.SmallButton("-")) SetScale(config.OverlayScale - 0.10f);
         ImGui.SameLine();
         if (ImGui.SmallButton($"{config.OverlayScale * 100f:0}%")) SetScale(1.0f);
@@ -100,15 +101,16 @@ public sealed class OverlayWindow : Window
         config.Save();
     }
 
-    private void DrawGauges()
+    private void DrawGauges(float scale)
     {
         var tpFrac = Math.Clamp(state.PlayerTp / 250f, 0f, 1f);
         var famFrac = Math.Clamp(state.FamiliarTp / 250f, 0f, 1f);
+        var barHeight = 26f * scale;
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(1.0f, 0.72f, 0.20f, 1f));
-        ImGui.ProgressBar(tpFrac, new Vector2(-1, 16), $"TP {state.PlayerTp}/250");
+        ImGui.ProgressBar(tpFrac, new Vector2(-1, barHeight), $"TP {state.PlayerTp}/250");
         ImGui.PopStyleColor();
         ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(0.35f, 0.70f, 1.0f, 1f));
-        ImGui.ProgressBar(famFrac, new Vector2(-1, 16), $"{UiText.FamiliarLabel} {state.FamiliarTp}/250");
+        ImGui.ProgressBar(famFrac, new Vector2(-1, barHeight), $"{UiText.FamiliarLabel} {state.FamiliarTp}/250");
         ImGui.PopStyleColor();
         ImGui.TextDisabled($"{state.ActiveKinship}   {BestiaryCatalog.BeastModeName(state.ActiveKinship)}");
         ImGui.Spacing();
