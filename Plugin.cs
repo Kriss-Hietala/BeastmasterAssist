@@ -13,7 +13,6 @@ public sealed class Plugin : IDalamudPlugin
 {
     public const string Command = "/bstassist";
     public const string CommandAlias = "/bestia";
-
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly ICommandManager commands;
     private readonly IFramework framework;
@@ -21,7 +20,6 @@ public sealed class Plugin : IDalamudPlugin
     private readonly IObjectTable objects;
     private readonly IPluginLog log;
     private readonly WindowSystem windows = new("BeastmasterAssist");
-
     private readonly Configuration config;
     private readonly GameData gameData;
     private readonly CombatState combatState;
@@ -37,75 +35,22 @@ public sealed class Plugin : IDalamudPlugin
 
     public Plugin(IDalamudPluginInterface pluginInterface, ICommandManager commands, IFramework framework, IChatGui chat, IClientState clientState, IDataManager data, ITargetManager targets, IObjectTable objects, ICondition condition, IPluginLog log)
     {
-        this.pluginInterface = pluginInterface;
-        this.commands = commands;
-        this.framework = framework;
-        this.chat = chat;
-        this.objects = objects;
-        this.log = log;
-        config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-        config.Initialize(pluginInterface);
-        gameData = new GameData(data, log);
-        gameData.Resolve();
+        this.pluginInterface = pluginInterface; this.commands = commands; this.framework = framework; this.chat = chat; this.objects = objects; this.log = log;
+        config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration(); config.Initialize(pluginInterface);
+        gameData = new GameData(data, log); gameData.Resolve();
         combatState = new CombatState(objects, targets, condition, gameData, log);
-        rotation = new RotationAdvisor(gameData, config);
-        reactions = new ReactionAdvisor(gameData);
-        mitigation = new MitigationAdvisor(gameData);
-        capture = new CaptureTracker(config, gameData, chat, clientState, objects, log);
-        progress = new ProgressTracker(config, gameData, data, clientState, log);
-        overlay = new OverlayWindow(config, combatState, rotation, reactions, mitigation, capture);
-        bestiary = new BestiaryWindow(config, capture, gameData);
-        progressWindow = new ProgressWindow(config, progress, gameData);
-        configWindow = new ConfigWindow(config);
-        windows.AddWindow(overlay);
-        windows.AddWindow(bestiary);
-        windows.AddWindow(progressWindow);
-        windows.AddWindow(configWindow);
-        commands.AddHandler(Command, new CommandInfo(OnCommand) { HelpMessage = "Beastmaster Assist. /bstassist overlay|bestiary|progress|config" });
-        commands.AddHandler(CommandAlias, new CommandInfo(OnCommand) { HelpMessage = "Alias Beastmaster Assist." });
-        pluginInterface.UiBuilder.Draw += windows.Draw;
-        pluginInterface.UiBuilder.OpenConfigUi += OpenConfig;
-        pluginInterface.UiBuilder.OpenMainUi += OpenBestiary;
-        framework.Update += OnUpdate;
-        capture.Attach();
-        progress.Refresh();
-        log.Info("Beastmaster Assist loaded. JobId={0} actions={1}", gameData.JobId, gameData.ResolvedActionCount);
+        rotation = new RotationAdvisor(gameData, config); reactions = new ReactionAdvisor(gameData); mitigation = new MitigationAdvisor(gameData);
+        capture = new CaptureTracker(config, gameData, chat, clientState, objects, log); progress = new ProgressTracker(config, gameData, data, clientState, log);
+        overlay = new OverlayWindow(config, combatState, rotation, reactions, mitigation, capture); bestiary = new BestiaryWindow(config, capture, gameData); progressWindow = new ProgressWindow(config, progress, gameData); configWindow = new ConfigWindow(config);
+        windows.AddWindow(overlay); windows.AddWindow(bestiary); windows.AddWindow(progressWindow); windows.AddWindow(configWindow);
+        UiNavigator.OpenBestiary = () => bestiary.IsOpen = true; UiNavigator.OpenProgress = () => progressWindow.IsOpen = true; UiNavigator.OpenSettings = () => configWindow.IsOpen = true;
+        UiNavigator.ToggleOverlay = () => { config.OverlayEnabled = !config.OverlayEnabled; config.Save(); };
+        commands.AddHandler(Command, new CommandInfo(OnCommand) { HelpMessage = "Beastmaster Assist: overlay|bestiary|progress|config|debug" }); commands.AddHandler(CommandAlias, new CommandInfo(OnCommand) { HelpMessage = "Alias Beastmaster Assist." });
+        pluginInterface.UiBuilder.Draw += windows.Draw; pluginInterface.UiBuilder.OpenConfigUi += OpenConfig; pluginInterface.UiBuilder.OpenMainUi += OpenBestiary; framework.Update += OnUpdate; capture.Attach(); progress.Refresh();
     }
-
-    public void Dispose()
-    {
-        framework.Update -= OnUpdate;
-        pluginInterface.UiBuilder.Draw -= windows.Draw;
-        pluginInterface.UiBuilder.OpenConfigUi -= OpenConfig;
-        pluginInterface.UiBuilder.OpenMainUi -= OpenBestiary;
-        capture.Detach();
-        commands.RemoveHandler(Command);
-        commands.RemoveHandler(CommandAlias);
-        windows.RemoveAllWindows();
-        config.Save();
-    }
-
-    private void OnUpdate(IFramework _)
-    {
-        combatState.Tick();
-        capture.Tick(combatState);
-        progress.Tick();
-        overlay.IsOpen = config.OverlayEnabled;
-    }
-
-    private void OnCommand(string command, string args)
-    {
-        switch ((args ?? string.Empty).Trim().ToLowerInvariant())
-        {
-            case "bestiary": case "bestiariusz": bestiary.Toggle(); break;
-            case "progress": case "progres": progressWindow.Toggle(); break;
-            case "config": case "cfg": configWindow.Toggle(); break;
-            case "overlay": config.OverlayEnabled = !config.OverlayEnabled; config.Save(); break;
-            case "debug": gameData.Dump(log); chat.Print("[BST Assist] Zrzut akcji Beastmastera poszedl do /xllog."); break;
-            default: bestiary.Toggle(); break;
-        }
-    }
-
-    private void OpenConfig() => configWindow.Toggle();
-    private void OpenBestiary() => bestiary.Toggle();
+    public void Dispose() { framework.Update -= OnUpdate; pluginInterface.UiBuilder.Draw -= windows.Draw; pluginInterface.UiBuilder.OpenConfigUi -= OpenConfig; pluginInterface.UiBuilder.OpenMainUi -= OpenBestiary; capture.Detach(); commands.RemoveHandler(Command); commands.RemoveHandler(CommandAlias); windows.RemoveAllWindows(); config.Save(); UiNavigator.OpenBestiary = null; UiNavigator.OpenProgress = null; UiNavigator.OpenSettings = null; UiNavigator.ToggleOverlay = null; }
+    private void OnUpdate(IFramework _) { combatState.Tick(); capture.Tick(combatState); progress.Tick(); overlay.IsOpen = config.OverlayEnabled; }
+    private void OnCommand(string command, string args) { switch ((args ?? string.Empty).Trim().ToLowerInvariant()) { case "bestiary": case "bestiariusz": bestiary.IsOpen = true; break; case "progress": case "progres": progressWindow.IsOpen = true; break; case "config": case "cfg": configWindow.IsOpen = true; break; case "overlay": UiNavigator.ToggleOverlay?.Invoke(); break; case "debug": gameData.Dump(log); chat.Print("[BST Assist] Zrzut akcji Beastmastera poszedl do /xllog."); break; default: bestiary.IsOpen = true; break; } }
+    private void OpenConfig() => configWindow.IsOpen = true;
+    private void OpenBestiary() => bestiary.IsOpen = true;
 }
