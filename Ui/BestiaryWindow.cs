@@ -1,5 +1,6 @@
 using System.Numerics;
 using BeastmasterAssist.Data;
+using BeastmasterAssist.Ipc;
 using BeastmasterAssist.Tracking;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
@@ -10,16 +11,18 @@ public sealed class BestiaryWindow : Window
 {
     private readonly Configuration config;
     private readonly CaptureTracker capture;
+    private readonly NavigationController? navigation;
     private string filter = "";
     private int tab;
     private int classFilter;
     private int selectedId = 1;
 
-    public BestiaryWindow(Configuration config, CaptureTracker capture, GameData data)
+    public BestiaryWindow(Configuration config, CaptureTracker capture, GameData data, NavigationController? navigation = null)
         : base("Master's Bestiary##BeastmasterAssistBestiary")
     {
         this.config = config;
         this.capture = capture;
+        this.navigation = navigation;
         Size = new Vector2(960, 620);
         SizeCondition = ImGuiCond.FirstUseEver;
     }
@@ -144,7 +147,30 @@ public sealed class BestiaryWindow : Window
         if (ImGui.Button(have ? UiText.Captured : UiText.Missing)) capture.Toggle(b.Id);
         ImGui.Separator();
 
-        Row(UiText.Location, b.LocalizedLocation(UiText.Polish));
+        ImGui.TextDisabled(UiText.Location);
+        ImGui.TextWrapped(b.LocalizedLocation(UiText.Polish));
+        if (navigation is not null)
+        {
+            var canTravel = navigation.CanTravel(b);
+            var busy = navigation.IsBusy;
+            ImGui.BeginDisabled(!canTravel || busy);
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.20f, 0.45f, 0.30f, 1f));
+            if (ImGui.SmallButton(UiText.T("Teleportuj##nav", "Travel##nav"))) navigation.TravelTo(b);
+            ImGui.PopStyleColor();
+            ImGui.EndDisabled();
+            if (!canTravel)
+            {
+                ImGui.SameLine();
+                ImGui.TextDisabled(UiText.T("(brak vnavmesh/Lifestream lub strefy)", "(vnavmesh/Lifestream or zone missing)"));
+            }
+            else if (busy)
+            {
+                ImGui.SameLine();
+                ImGui.TextColored(new Vector4(1f, .78f, .25f, 1f), UiText.T("(w drodze...)", "(traveling...)"));
+            }
+        }
+        ImGui.Separator();
+
         Row(UiText.Level, $"Lv {b.Level}");
         Row(UiText.KinshipLabel, $"{b.Class} - {BestiaryCatalog.BeastModeName(b.Class)}");
         Row(UiText.AffinityLabel, b.Affinity.ToString());

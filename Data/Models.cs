@@ -1,10 +1,15 @@
+using System.Numerics;
+
 namespace BeastmasterAssist.Data;
+
 
 public enum InstinctColor { None, Rampant, Durant, Eldritch, Volant, Sunstrider, Moonstalker }
 public enum Kinship { None, Beastkin, Vilekin, Cloudkin, Seedkin, Wavekin, Scalekin, Soulkin, Ashkin }
 public enum AdviceKind { Gcd, Ogcd, Reaction, Mitigation, Capture, Swap }
 
+
 public sealed record Advice(AdviceKind Kind, string Action, string Reason, int Priority);
+
 
 public sealed class BeastEntry
 {
@@ -25,10 +30,17 @@ public sealed class BeastEntry
     public string? GourdHint { get; init; }
     public string? GourdHintPl { get; init; }
 
+    // Nawigacja (vnavmesh/Lifestream). Opcjonalne - jesli TargetPosition jest puste,
+    // gracz jest teleportowany tylko do najblizszej strefy bez auto-pathingu.
+    public string? Zone { get; init; }
+    public Vector3? TargetPosition { get; init; }
+
+
     public string LocalizedLocation(bool polish) => polish ? (LocationPl ?? Location) : Location;
     public string LocalizedNotes(bool polish) => polish ? (NotesPl ?? Notes) : Notes;
     public string? LocalizedGourdHint(bool polish) => polish ? (GourdHintPl ?? GourdHint) : GourdHint;
 }
+
 
 public sealed class GearPiece
 {
@@ -41,8 +53,10 @@ public sealed class GearPiece
     public bool Upgradeable { get; init; }
     public int UpgradeTier { get; init; }
 
+
     public string LocalizedSource(bool polish) => polish ? (SourcePl ?? Source) : Source;
 }
+
 
 public sealed class AchievementDef
 {
@@ -54,9 +68,11 @@ public sealed class AchievementDef
     public string? RewardPl { get; init; }
     public uint? ResolvedId { get; set; }
 
+
     public string LocalizedDescription(bool polish) => polish ? (DescriptionPl ?? Description) : Description;
     public string? LocalizedReward(bool polish) => polish ? (RewardPl ?? Reward) : Reward;
 }
+
 
 public sealed class QuestDef
 {
@@ -66,6 +82,7 @@ public sealed class QuestDef
     public required string Npc { get; init; }
     public required string Rewards { get; init; }
     public string? RewardsPl { get; init; }
+
 
     public string LocalizedRewards(bool polish) => polish ? (RewardsPl ?? Rewards) : Rewards;
 }
