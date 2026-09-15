@@ -227,7 +227,7 @@ public sealed class OverlayWindow : Window
 
         var size = 28f;
         var wrap = textures.GetFromGameIcon(new GameIconLookup(info.Value.IconId)).GetWrapOrEmpty();
-        ImGui.Image(wrap.ImGuiHandle, new Vector2(size, size));
+        ImGui.Image(wrap.Handle, new Vector2(size, size));
         ImGui.SameLine();
         ImGui.AlignTextToFramePadding();
         ImGui.TextColored(new Vector4(1f, 0.95f, 0.6f, 1f), info.Value.Name);
