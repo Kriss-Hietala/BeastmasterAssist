@@ -15,7 +15,8 @@ public sealed class BestiaryWindow : Window
     private int classFilter;
     private int selectedId = 1;
 
-    public BestiaryWindow(Configuration config, CaptureTracker capture, GameData data) : base("Master's Bestiary##BeastmasterAssistBestiary")
+    public BestiaryWindow(Configuration config, CaptureTracker capture, GameData data)
+        : base("Master's Bestiary##BeastmasterAssistBestiary")
     {
         this.config = config;
         this.capture = capture;
@@ -23,24 +24,42 @@ public sealed class BestiaryWindow : Window
         SizeCondition = ImGuiCond.FirstUseEver;
     }
 
+    public override void PreDraw()
+    {
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 8f);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 5f);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(14, 12));
+    }
+
+    public override void PostDraw() => ImGui.PopStyleVar(3);
+
     public override void Draw()
     {
         UiText.Sync(config);
+
+        var scale = Math.Clamp(config.OverlayScale, 0.80f, 1.60f);
+        ImGui.SetWindowFontScale(scale);
+
         Nav();
         ImGui.Separator();
+        ImGui.Spacing();
 
         ImGui.TextColored(new Vector4(1f, .78f, .25f, 1f), UiText.Bestiary);
         ImGui.SameLine();
-        ImGui.ProgressBar(capture.CapturedCount / 50f, new Vector2(220, 18), UiText.CapturedCount(capture.CapturedCount));
+        var barHeight = MathF.Max(18f, ImGui.GetTextLineHeight() + ImGui.GetStyle().FramePadding.Y * 2f);
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(1f, .78f, .25f, 1f));
+        ImGui.ProgressBar(capture.CapturedCount / 50f, new Vector2(220, barHeight), UiText.CapturedCount(capture.CapturedCount));
+        ImGui.PopStyleColor();
         ImGui.SameLine();
         ImGui.TextDisabled(UiText.MissingCount(BestiaryCatalog.All.Count - capture.CapturedCount));
 
+        ImGui.Spacing();
         Tabs();
         ImGui.InputText(UiText.Search, ref filter, 64);
         ImGui.SameLine();
         ImGui.SetNextItemWidth(150);
 
-        // Podwójny terminator null (\0\0) wymagany przez specyfikację ImGui Combo dla pojedynczego bufora opcji
+        // Podwojny terminator null (\0\0) wymagany przez specyfikacje ImGui Combo dla pojedynczego bufora opcji
         ImGui.Combo(UiText.Filters, ref classFilter, "All\0Beastkin\0Vilekin\0Cloudkin\0Seedkin\0Wavekin\0Scalekin\0Soulkin\0Ashkin\0\0");
         ImGui.Separator();
 
@@ -55,17 +74,37 @@ public sealed class BestiaryWindow : Window
             DrawDetails();
             ImGui.EndTable();
         }
+
+        ImGui.SetWindowFontScale(1f);
     }
 
     private void Tabs()
     {
-        if (ImGui.Button(UiText.All)) tab = 0;
+        DrawTabButton(UiText.All, 0);
         ImGui.SameLine();
-        if (ImGui.Button(UiText.Missing)) tab = 1;
+        DrawTabButton(UiText.Missing, 1);
         ImGui.SameLine();
-        if (ImGui.Button(UiText.Captured)) tab = 2;
+        DrawTabButton(UiText.Captured, 2);
         ImGui.SameLine();
-        if (ImGui.Button(UiText.Duty)) tab = 3;
+        DrawTabButton(UiText.Duty, 3);
+    }
+
+    private void DrawTabButton(string label, int index)
+    {
+        var active = tab == index;
+        var accent = active ? new Vector4(1f, 0.78f, 0.25f, 1f) : new Vector4(0.55f, 0.55f, 0.55f, 1f);
+
+        ImGui.PushStyleColor(ImGuiCol.Button, active ? new Vector4(0.35f, 0.28f, 0.08f, 1f) : new Vector4(0.18f, 0.18f, 0.18f, 1f));
+        ImGui.PushStyleColor(ImGuiCol.Text, accent);
+        if (ImGui.Button($"{label}##btab{index}")) tab = index;
+        ImGui.PopStyleColor(2);
+
+        if (active)
+        {
+            var min = ImGui.GetItemRectMin();
+            var max = ImGui.GetItemRectMax();
+            ImGui.GetWindowDrawList().AddLine(new Vector2(min.X, max.Y), new Vector2(max.X, max.Y), ImGui.ColorConvertFloat4ToU32(accent), 2f);
+        }
     }
 
     private void DrawList()
@@ -83,8 +122,11 @@ public sealed class BestiaryWindow : Window
                 !loc.Contains(filter, StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            var label = $"{(have ? "[x]" : "[ ]")} #{b.Id:00}  {b.Name}";
+            var accent = have ? new Vector4(0.55f, 1f, 0.55f, 1f) : new Vector4(0.85f, 0.85f, 0.85f, 1f);
+            var label = $"{(have ? "[x]" : "[ ]")} #{b.Id:00} {b.Name}";
+            ImGui.PushStyleColor(ImGuiCol.Text, accent);
             if (ImGui.Selectable(label, selectedId == b.Id)) selectedId = b.Id;
+            ImGui.PopStyleColor();
             ImGui.SameLine();
             ImGui.TextDisabled($"{b.Class} - {b.Affinity}");
         }
