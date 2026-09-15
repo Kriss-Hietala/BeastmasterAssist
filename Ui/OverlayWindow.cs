@@ -103,20 +103,26 @@ public sealed class OverlayWindow : Window
     }
 
 
-    // ================= TRYB KLASYCZNY (PELNY, ORYGINALNY) =================
+    // ================= TRYB KLASYCZNY =================
     private void DrawClassicMode()
     {
         DrawClassicHeader();
-        DrawClassicGauges();
+
+
+        if (config.ShowTpGauges)
+        {
+            DrawResourceBars();
+        }
 
 
         if (config.ShowRotation)
         {
-            DrawClassicSection(UiText.Rotation, new Vector4(1f, 0.8f, 0.3f, 1f), DrawNextAction);
+            ImGui.Spacing();
+            DrawRotationSection();
         }
 
 
-        if (levelingSnapshot.Count > 0)
+        if (config.ShowLeveling && levelingSnapshot.Count > 0)
         {
             DrawClassicSection(UiText.Leveling, new Vector4(0.75f, 0.55f, 1f, 1f), () =>
             {
@@ -175,24 +181,6 @@ public sealed class OverlayWindow : Window
     }
 
 
-    private void DrawClassicGauges()
-    {
-        var h = MathF.Max(18f, ImGui.GetTextLineHeight() + ImGui.GetStyle().FramePadding.Y * 2f);
-        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(1f, 0.72f, 0.2f, 1f));
-        ImGui.ProgressBar(state.PlayerTp / 250f, new Vector2(-1, h), $"TP {state.PlayerTp}/250");
-        ImGui.PopStyleColor();
-
-
-        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(0.35f, 0.70f, 1f, 1f));
-        ImGui.ProgressBar(state.FamiliarTp / 250f, new Vector2(-1, h), $"{UiText.FamiliarLabel} {state.FamiliarTp}/250");
-        ImGui.PopStyleColor();
-
-
-        ImGui.TextDisabled($"{state.ActiveKinship}   {BestiaryCatalog.BeastModeName(state.ActiveKinship)}");
-        ImGui.Spacing();
-    }
-
-
     private static void DrawClassicSection(string t, Vector4 c, Action body)
     {
         ImGui.Spacing();
@@ -206,42 +194,93 @@ public sealed class OverlayWindow : Window
     }
 
 
-    // Wspolna dla trybu klasycznego i kompaktowego: ikonka + nazwa sugerowanej
-    // akcji pochodzacej z Rotation Solver Reborn (przez IPC).
-    private void DrawNextAction()
+    // Wspolny uklad paskow TP/Familiar (obok siebie) dla obu trybow overlaya.
+    private void DrawResourceBars()
+    {
+        var barHeight = MathF.Max(18f, ImGui.GetTextLineHeight() + ImGui.GetStyle().FramePadding.Y * 2f);
+        var spacing = ImGui.GetStyle().ItemSpacing.X;
+
+
+        var tpLabelWidth = ImGui.CalcTextSize("TP").X;
+        var famLabelWidth = ImGui.CalcTextSize(UiText.FamiliarLabel).X;
+        var reserved = tpLabelWidth + famLabelWidth + spacing * 4f + 10f;
+        var availWidth = ImGui.GetContentRegionAvail().X;
+        var barWidth = MathF.Max(40f, (availWidth - reserved) * 0.5f);
+
+
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextDisabled("TP");
+        ImGui.SameLine();
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(0.95f, 0.65f, 0.15f, 1f));
+        ImGui.ProgressBar(state.PlayerTp / 250f, new Vector2(barWidth, barHeight), $"{state.PlayerTp}");
+        ImGui.PopStyleColor();
+
+
+        ImGui.SameLine(0, 10f);
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextDisabled(UiText.FamiliarLabel);
+        ImGui.SameLine();
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(0.30f, 0.65f, 0.95f, 1f));
+        ImGui.ProgressBar(state.FamiliarTp / 250f, new Vector2(barWidth, barHeight), $"{state.FamiliarTp}");
+        ImGui.PopStyleColor();
+
+
+        ImGui.TextDisabled($"{state.ActiveKinship}   {BestiaryCatalog.BeastModeName(state.ActiveKinship)}");
+        ImGui.Spacing();
+    }
+
+
+    // Uklad sekcji Rotation: duza ikona po lewej, a obok niej (na wysokosci
+    // "tabulatora" rownej szerokosci ikony) dwie linie tekstu - naglowek i nazwa
+    // sugerowanej umiejetnosci. Wspolne dla trybu klasycznego i kompaktowego.
+    private void DrawRotationSection()
+    {
+        var accent = new Vector4(1f, 0.8f, 0.3f, 1f);
+        ImGui.PushStyleColor(ImGuiCol.Separator, accent);
+        ImGui.Separator();
+        ImGui.PopStyleColor();
+
+
+        var (label, iconId) = ResolveRotationDisplay();
+        var iconSize = 56f;
+
+
+        if (iconId is not null)
+        {
+            var wrap = textures.GetFromGameIcon(new GameIconLookup(iconId.Value)).GetWrapOrEmpty();
+            ImGui.Image(wrap.Handle, new Vector2(iconSize, iconSize));
+        }
+        else
+        {
+            ImGui.Dummy(new Vector2(iconSize, iconSize));
+        }
+
+
+        ImGui.SameLine();
+        var textBlockHeight = ImGui.GetTextLineHeightWithSpacing() * 2f;
+        var offsetY = (iconSize - textBlockHeight) * 0.5f;
+        if (offsetY > 0) ImGui.SetCursorPosY(ImGui.GetCursorPosY() + offsetY);
+
+
+        ImGui.BeginGroup();
+        ImGui.TextColored(accent, UiText.Rotation.ToUpperInvariant());
+        ImGui.TextColored(new Vector4(1f, 0.95f, 0.6f, 1f), label);
+        ImGui.EndGroup();
+    }
+
+
+    private (string Label, uint? IconId) ResolveRotationDisplay()
     {
         if (!rsr.Available)
-        {
-            ImGui.TextDisabled(UiText.T("Rotation Solver Reborn nieaktywny.", "Rotation Solver Reborn not active."));
-            return;
-        }
+            return (UiText.T("Rotation Solver Reborn nieaktywny", "Rotation Solver Reborn not active"), null);
 
 
         var info = gameData.ResolveAction(rsr.NextActionId);
         if (info is null)
-        {
-            ImGui.TextDisabled(UiText.T("Brak sugestii.", "No suggestion."));
-            return;
-        }
+            return (UiText.T("Brak sugestii", "No suggestion"), null);
 
 
-        var size = 28f;
-        var wrap = textures.GetFromGameIcon(new GameIconLookup(info.Value.IconId)).GetWrapOrEmpty();
-        ImGui.Image(wrap.Handle, new Vector2(size, size));
-        ImGui.SameLine();
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextColored(new Vector4(1f, 0.95f, 0.6f, 1f), info.Value.Name);
-
-
-        if (rsr.NextGcdActionId != 0 && rsr.NextGcdActionId != rsr.NextActionId)
-        {
-            var gcdInfo = gameData.ResolveAction(rsr.NextGcdActionId);
-            if (gcdInfo is not null)
-            {
-                ImGui.SameLine();
-                ImGui.TextDisabled($"-> {gcdInfo.Value.Name}");
-            }
-        }
+        return (info.Value.Name, info.Value.IconId);
     }
 
 
@@ -249,14 +288,17 @@ public sealed class OverlayWindow : Window
     private void DrawCompactMode()
     {
         DrawCompactHeader();
-        DrawCompactResourceBars();
+
+
+        if (config.ShowTpGauges)
+        {
+            DrawResourceBars();
+        }
 
 
         if (config.ShowRotation)
         {
-            ImGui.TextDisabled("NEXT");
-            ImGui.SameLine();
-            DrawNextAction();
+            DrawRotationSection();
         }
 
 
@@ -268,7 +310,7 @@ public sealed class OverlayWindow : Window
         }
 
 
-        if (!state.InCombat && levelingSnapshot.Count > 0)
+        if (config.ShowLeveling && !state.InCombat && levelingSnapshot.Count > 0)
         {
             ImGui.Spacing();
             ImGui.Separator();
@@ -344,40 +386,6 @@ public sealed class OverlayWindow : Window
 
 
         ImGui.Separator();
-    }
-
-
-    private void DrawCompactResourceBars()
-    {
-        var barHeight = MathF.Max(18f, ImGui.GetTextLineHeight() + ImGui.GetStyle().FramePadding.Y * 2f);
-        var spacing = ImGui.GetStyle().ItemSpacing.X;
-
-
-        var tpLabelWidth = ImGui.CalcTextSize("TP").X;
-        var famLabelWidth = ImGui.CalcTextSize("Fam").X;
-        var reserved = tpLabelWidth + famLabelWidth + spacing * 4f + 10f;
-        var availWidth = ImGui.GetContentRegionAvail().X;
-        var barWidth = MathF.Max(40f, (availWidth - reserved) * 0.5f);
-
-
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextDisabled("TP");
-        ImGui.SameLine();
-        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(0.95f, 0.65f, 0.15f, 1f));
-        ImGui.ProgressBar(state.PlayerTp / 250f, new Vector2(barWidth, barHeight), $"{state.PlayerTp}");
-        ImGui.PopStyleColor();
-
-
-        ImGui.SameLine(0, 10f);
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextDisabled("Fam");
-        ImGui.SameLine();
-        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(0.30f, 0.65f, 0.95f, 1f));
-        ImGui.ProgressBar(state.FamiliarTp / 250f, new Vector2(barWidth, barHeight), $"{state.FamiliarTp}");
-        ImGui.PopStyleColor();
-
-
-        ImGui.Spacing();
     }
 
 

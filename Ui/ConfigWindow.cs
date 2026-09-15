@@ -52,8 +52,12 @@ public sealed class ConfigWindow : Window
         if (ImGui.Checkbox(UiText.Overlay, ref ov)) { config.OverlayEnabled = ov; config.Save(); }
         var only = config.ShowOnlyOnBeastmaster;
         if (ImGui.Checkbox(UiText.ShowOnlyOnBst, ref only)) { config.ShowOnlyOnBeastmaster = only; config.Save(); }
+        var tp = config.ShowTpGauges;
+        if (ImGui.Checkbox(UiText.T("Pokazuj paski TP", "Show TP gauges"), ref tp)) { config.ShowTpGauges = tp; config.Save(); }
         var rot = config.ShowRotation;
         if (ImGui.Checkbox(UiText.ShowRotationOpt, ref rot)) { config.ShowRotation = rot; config.Save(); }
+        var lvl = config.ShowLeveling;
+        if (ImGui.Checkbox(UiText.T("Pokazuj sugestie levelowania", "Show leveling suggestion"), ref lvl)) { config.ShowLeveling = lvl; config.Save(); }
         var cap = config.ShowCaptureHud;
         if (ImGui.Checkbox(UiText.ShowCaptureOpt, ref cap)) { config.ShowCaptureHud = cap; config.Save(); }
         var markers = config.ShowNameplateMarkers;
