@@ -33,6 +33,10 @@ public sealed class ProgressWindow : Window
     public override void Draw()
     {
         UiText.Sync(config);
+
+        var scale = Math.Clamp(config.OverlayScale, 0.80f, 1.60f);
+        ImGui.SetWindowFontScale(scale);
+
         Nav();
         ImGui.Separator();
         ImGui.Spacing();
@@ -53,6 +57,8 @@ public sealed class ProgressWindow : Window
             case 1: DrawGear(); break;
             default: DrawQuests(); break;
         }
+
+        ImGui.SetWindowFontScale(1f);
     }
 
     private void DrawTabButton(string label, int index, int done, int total)
@@ -93,20 +99,24 @@ public sealed class ProgressWindow : Window
             var complete = tracker.AchievementDone(a);
             var accent = complete ? new Vector4(0.55f, 1f, 0.55f, 1f) : new Vector4(0.55f, 0.55f, 0.55f, 1f);
 
-            ImGui.PushStyleColor(ImGuiCol.Border, accent);
-            ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1.2f);
-            ImGui.BeginChild($"ach_{a.Name}", new Vector2(0, 0), true, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
-
+            ImGui.BeginGroup();
+            ImGui.Dummy(new Vector2(0, 4));
+            ImGui.Indent(10);
             ImGui.TextColored(accent, $"{(complete ? "[x]" : "[ ]")} {a.Name}");
             ImGui.Indent(8);
             ImGui.TextWrapped(a.LocalizedDescription(UiText.Polish));
             var reward = a.LocalizedReward(UiText.Polish);
             if (reward is not null) ImGui.TextColored(new Vector4(1f, 0.85f, 0.4f, 1f), $"{UiText.Reward}: {reward}");
             ImGui.Unindent(8);
+            ImGui.Unindent(10);
+            ImGui.Dummy(new Vector2(0, 4));
+            ImGui.EndGroup();
 
-            ImGui.EndChild();
-            ImGui.PopStyleVar();
-            ImGui.PopStyleColor();
+            var min = ImGui.GetItemRectMin() - new Vector2(4, 2);
+            var max = ImGui.GetItemRectMax() + new Vector2(4, 2);
+            ImGui.GetWindowDrawList().AddRect(min, max, ImGui.ColorConvertFloat4ToU32(accent), 6f, ImDrawFlags.None, 1.2f);
+
+            ImGui.Spacing();
             ImGui.Spacing();
         }
     }
