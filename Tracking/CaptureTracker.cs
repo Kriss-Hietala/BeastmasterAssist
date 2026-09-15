@@ -21,14 +21,16 @@ public sealed class CaptureTracker
         this.objects = objects;
     }
 
-    public void Attach() => chat.ChatMessageUnhandled += OnChat;
-    public void Detach() => chat.ChatMessageUnhandled -= OnChat;
+    public void Attach() => chat.ChatMessage += OnChatMessage;
+    public void Detach() => chat.ChatMessage -= OnChatMessage;
+
     public int CapturedCount => config.CapturedBeastIds.Count;
     public bool Has(int id) => config.CapturedBeastIds.Contains(id);
 
     public void Toggle(int id)
     {
-        if (!config.CapturedBeastIds.Add(id)) config.CapturedBeastIds.Remove(id);
+        if (!config.CapturedBeastIds.Add(id))
+            config.CapturedBeastIds.Remove(id);
         config.Save();
     }
 
@@ -63,8 +65,18 @@ public sealed class CaptureTracker
         }
 
         var b = MatchByMonster(state.Target.Name.TextValue);
-        if (b is null) { CapturePrompt = Loc.T("Gauge na celu.", "Gauge the target."); return; }
-        if (Has(b.Id)) { CapturePrompt = Loc.T($"{b.Name} juz w bestiariuszu.", $"{b.Name} already captured."); return; }
+        if (b is null)
+        {
+            CapturePrompt = Loc.T("Gauge na celu.", "Gauge the target.");
+            return;
+        }
+
+        if (Has(b.Id))
+        {
+            CapturePrompt = Loc.T($"{b.Name} juz w bestiariuszu.", $"{b.Name} already captured.");
+            return;
+        }
+
         CapturePrompt = Loc.T($"{b.Name}: Gauge 30y, Capture 10y. HP {state.TargetHpPct:P0}", $"{b.Name}: Gauge 30y, Capture 10y. HP {state.TargetHpPct:P0}");
     }
 
@@ -73,11 +85,12 @@ public sealed class CaptureTracker
             name.Contains(b.Monster, StringComparison.OrdinalIgnoreCase) ||
             name.Contains(b.Name, StringComparison.OrdinalIgnoreCase));
 
-    private void OnChat(IChatMessage chatMessage)
+    private void OnChatMessage(IHandleableChatMessage chatMessage)
     {
         var text = chatMessage.Message.TextValue;
-        if (!(text.Contains("pact", StringComparison.OrdinalIgnoreCase) || text.Contains("Bestiary", StringComparison.OrdinalIgnoreCase)))
+        if (!text.Contains("pact", StringComparison.OrdinalIgnoreCase) && !text.Contains("Bestiary", StringComparison.OrdinalIgnoreCase))
             return;
+
         foreach (var b in BestiaryCatalog.All)
         {
             if (text.Contains(b.Name, StringComparison.OrdinalIgnoreCase) || text.Contains(b.Monster, StringComparison.OrdinalIgnoreCase))

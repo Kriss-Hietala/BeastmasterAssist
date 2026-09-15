@@ -4,6 +4,7 @@ using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game.Gauge;
 
 namespace BeastmasterAssist.Combat;
 
@@ -23,6 +24,7 @@ public sealed class CombatState
     public float TargetDistance { get; private set; }
     public bool TargetCasting { get; private set; }
     public string TargetCastName { get; private set; } = "";
+
     public bool HasOneWithNature { get; private set; }
     public bool HasLingeringVantage { get; private set; }
     public bool HasInterestCaptured { get; private set; }
@@ -57,10 +59,12 @@ public sealed class CombatState
         Target = targets.Target as IBattleChara;
         InCombat = condition[ConditionFlag.InCombat];
         PlayerStatusNames.Clear();
+
         if (Player is null) return;
 
         Level = Player.Level;
         HpPct = Player.MaxHp == 0 ? 0 : Player.CurrentHp / (float)Player.MaxHp;
+
         if (Target is not null)
         {
             TargetHpPct = Target.MaxHp == 0 ? 0 : Target.CurrentHp / (float)Target.MaxHp;
@@ -91,6 +95,7 @@ public sealed class CombatState
         LastHeart = ReadHeart(Player, out var hr);
         HeartRemain = hr;
         FamiliarOut = HasOneWithNature || HasLingeringVantage || Has(Player, "Cover");
+
         HasInterestCaptured = false;
         InterestCapturedRemain = 0;
         if (Target is not null)
@@ -105,7 +110,7 @@ public sealed class CombatState
             if (!string.IsNullOrEmpty(n)) PlayerStatusNames.Add(n);
         }
 
-        ReadGaugeFallback();
+        ReadRealGauge();
         ReadCombo();
     }
 
@@ -134,19 +139,37 @@ public sealed class CombatState
         }
     }
 
-    private void ReadGaugeFallback()
+    private unsafe void ReadRealGauge()
     {
-        if (PlayerTp < 100 && ComboStep >= 2) PlayerTp = Math.Min(250, PlayerTp + 15);
-        if (!InCombat)
+        var jm = JobGaugeManager.Instance();
+        if (jm is null) return;
+
+        // Bezpośredni odczyt struktury pamięci Gauge wskaźnika Beastmastera
+        byte* gaugePtr = (byte*)jm->CurrentGauge;
+        if (gaugePtr != null)
         {
-            PlayerTp = Math.Max(0, PlayerTp - 2);
-            FamiliarTp = Math.Max(0, FamiliarTp - 2);
+            // Typowy układ pamięci dla gauge z dwoma zasobami:
+            // Offset 0x08: Player Gauge (ushort lub byte)
+            // Offset 0x0A / 0x0C: Familiar Gauge (ushort lub byte)
+            var pTp = *(ushort*)(gaugePtr + 0x08);
+            var fTp = *(ushort*)(gaugePtr + 0x0A);
+
+            if (pTp <= 250 && fTp <= 250 && (pTp > 0 || fTp > 0 || InCombat))
+            {
+                PlayerTp = pTp;
+                FamiliarTp = fTp;
+                return;
+            }
+
+            // Alternatywny offset bajtowy
+            var pTpByte = *(gaugePtr + 0x08);
+            var fTpByte = *(gaugePtr + 0x09);
+            if (pTpByte <= 250 && fTpByte <= 250)
+            {
+                PlayerTp = pTpByte;
+                FamiliarTp = fTpByte;
+            }
         }
-        if (HasOneWithNature && FamiliarTp < 80) FamiliarTp = 80;
-        if (MasteredInstinct > 0 && PlayerTp < 100) PlayerTp = 100;
-        if (NaturalInstinct > 0 && FamiliarTp < 100) FamiliarTp = 100;
-        PlayerTp = Math.Clamp(PlayerTp, 0, 250);
-        FamiliarTp = Math.Clamp(FamiliarTp, 0, 250);
     }
 
     private Kinship ReadKinship(IBattleChara player)

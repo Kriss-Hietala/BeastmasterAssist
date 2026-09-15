@@ -4,21 +4,369 @@ using BeastmasterAssist.Data;
 using BeastmasterAssist.Tracking;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
+
 namespace BeastmasterAssist.Ui;
+
 public sealed class OverlayWindow : Window
 {
- private readonly Configuration config; private readonly CombatState state; private readonly RotationAdvisor rotation; private readonly ReactionAdvisor reactions; private readonly MitigationAdvisor mitigation; private readonly CaptureTracker capture; private readonly LevelingAdvisor leveling;
- private DateTime nextSnapshotAt=DateTime.MinValue,playerZeroSince=DateTime.MinValue,familiarZeroSince=DateTime.MinValue; private int displayedPlayerTp,displayedFamiliarTp; private string captureText=""; private List<Advice> rotationSnapshot=[],reactionSnapshot=[],mitigationSnapshot=[]; private List<LevelingAdvisor.Spot> levelingSnapshot=[];
- public OverlayWindow(Configuration config,CombatState state,RotationAdvisor rotation,ReactionAdvisor reactions,MitigationAdvisor mitigation,CaptureTracker capture,LevelingAdvisor leveling):base("Beastmaster Assist##BeastmasterAssistOverlay",ImGuiWindowFlags.NoCollapse){this.config=config;this.state=state;this.rotation=rotation;this.reactions=reactions;this.mitigation=mitigation;this.capture=capture;this.leveling=leveling;RespectCloseHotkey=false;Size=new Vector2(380,0);SizeCondition=ImGuiCond.FirstUseEver;}
- public override void PreDraw(){Flags=ImGuiWindowFlags.NoCollapse;if(config.LockOverlay)Flags|=ImGuiWindowFlags.NoMove|ImGuiWindowFlags.NoResize;ImGui.SetNextWindowBgAlpha(.90f);ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding,10f);ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding,6f);ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding,new Vector2(14,12));ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing,new Vector2(6,6));}
- public override void PostDraw()=>ImGui.PopStyleVar(4);
- public override void Draw(){UiText.Sync(config);RefreshSnapshot();UpdateDisplayedTp();var scale=Math.Clamp(config.OverlayScale,.60f,1.80f);ImGui.SetWindowFontScale(scale);DrawHeader(scale);DrawGauges(scale);DrawSection(UiText.Rotation,new Vector4(1,.8f,.3f,1),()=>DrawAdviceList(rotationSnapshot,3));if(config.ShowReactions&&reactionSnapshot.Count>0)DrawSection(UiText.Reactions,new Vector4(1,.45f,.4f,1),()=>DrawAdviceList(reactionSnapshot,2));if(config.ShowMitigation&&mitigationSnapshot.Count>0)DrawSection(UiText.Mitigation,new Vector4(.4f,.75f,1,1),()=>DrawAdviceList(mitigationSnapshot,2));if(levelingSnapshot.Count>0)DrawSection(UiText.Leveling,new Vector4(.75f,.55f,1,1),DrawLevelingList);if(config.ShowCaptureHud&&!string.IsNullOrEmpty(captureText))DrawSection(UiText.Capture,new Vector4(.55f,1,.55f,1),()=>ImGui.TextWrapped(captureText));ImGui.SetWindowFontScale(1);}
- private void UpdateDisplayedTp(){var now=DateTime.UtcNow;displayedPlayerTp=StabilizeTp(state.PlayerTp,displayedPlayerTp,ref playerZeroSince,now);displayedFamiliarTp=StabilizeTp(state.FamiliarTp,displayedFamiliarTp,ref familiarZeroSince,now);}
- private static int StabilizeTp(int raw,int shown,ref DateTime zeroSince,DateTime now){raw=Math.Clamp(raw,0,250);if(raw>0){zeroSince=DateTime.MinValue;return raw;}if(shown==0)return 0;if(zeroSince==DateTime.MinValue)zeroSince=now;return now-zeroSince>=TimeSpan.FromMilliseconds(250)?0:shown;}
- private void DrawHeader(float scale){var accent=state.InCombat?new Vector4(1,.35f,.3f,1):new Vector4(.35f,.85f,.45f,1);var p=ImGui.GetCursorScreenPos();ImGui.GetWindowDrawList().AddCircleFilled(p+new Vector2(6*scale,8*scale),5*scale,ImGui.ColorConvertFloat4ToU32(accent));ImGui.Dummy(new Vector2(16*scale,0));ImGui.SameLine();ImGui.TextColored(new Vector4(1,.85f,.35f,1),"BEASTMASTER ASSIST");ImGui.SameLine();ImGui.TextDisabled(state.Player is not null?$"Lv{state.Level}":UiText.NoPlayer);if(ImGui.SmallButton("-"))SetScale(config.OverlayScale-.1f);ImGui.SameLine();if(ImGui.SmallButton($"{config.OverlayScale*100f:0}%"))SetScale(1);ImGui.SameLine();if(ImGui.SmallButton("+"))SetScale(config.OverlayScale+.1f);ImGui.SameLine();if(ImGui.SmallButton(UiText.HideOverlay))UiNavigator.ToggleOverlay?.Invoke();ImGui.Separator();}
- private void SetScale(float value){config.OverlayScale=Math.Clamp(value,.60f,1.80f);config.Save();}
- private void DrawGauges(float scale){var h=26*scale;ImGui.PushStyleColor(ImGuiCol.PlotHistogram,new Vector4(1,.72f,.2f,1));ImGui.ProgressBar(displayedPlayerTp/250f,new Vector2(-1,h),$"TP {displayedPlayerTp}/250");ImGui.PopStyleColor();ImGui.PushStyleColor(ImGuiCol.PlotHistogram,new Vector4(.35f,.70f,1,1));ImGui.ProgressBar(displayedFamiliarTp/250f,new Vector2(-1,h),$"{UiText.FamiliarLabel} {displayedFamiliarTp}/250");ImGui.PopStyleColor();ImGui.TextDisabled($"{state.ActiveKinship}   {BestiaryCatalog.BeastModeName(state.ActiveKinship)}");ImGui.Spacing();}
- private static void DrawSection(string t,Vector4 c,Action body){ImGui.Spacing();ImGui.TextColored(c,t.ToUpperInvariant());ImGui.PushStyleColor(ImGuiCol.Separator,c);ImGui.Separator();ImGui.PopStyleColor();ImGui.Indent(8);body();ImGui.Unindent(8);} private static void DrawAdviceList(List<Advice> a,int max){foreach(var x in a.Take(max)){ImGui.BulletText(x.Action);ImGui.SameLine();ImGui.TextDisabled(x.Reason);}}
- private void DrawLevelingList(){for(var i=0;i<levelingSnapshot.Count;i++){var s=levelingSnapshot[i];var tag=s.Captured?UiText.Captured:UiText.Missing;ImGui.TextColored(i==0?new Vector4(.85f,.70f,1,1):new Vector4(.9f,.9f,.9f,1),i==0?$"-> Lv{s.Level} {s.Name} ({tag})":$"• Lv{s.Level} {s.Name} ({tag})");ImGui.Indent(12);ImGui.TextWrapped(s.Location);ImGui.Unindent(12);}}
- private void RefreshSnapshot(){if(DateTime.UtcNow<nextSnapshotAt)return;nextSnapshotAt=DateTime.UtcNow.AddMilliseconds(750);captureText=capture.CapturePrompt;rotationSnapshot=rotation.Advise(state);reactionSnapshot=reactions.Advise(state);mitigationSnapshot=mitigation.Advise(state);levelingSnapshot=leveling.Suggest(state.Level,capture.Has);}
+    private readonly Configuration config;
+    private readonly CombatState state;
+    private readonly RotationAdvisor rotation;
+    private readonly ReactionAdvisor reactions;
+    private readonly MitigationAdvisor mitigation;
+    private readonly CaptureTracker capture;
+    private readonly LevelingAdvisor leveling;
+
+    private DateTime nextSnapshotAt = DateTime.MinValue;
+    private string captureText = "";
+    private bool showMoreLeveling;
+
+    private readonly List<Advice> rotationSnapshot = [];
+    private readonly List<Advice> reactionSnapshot = [];
+    private readonly List<Advice> mitigationSnapshot = [];
+    private readonly List<LevelingAdvisor.Spot> levelingSnapshot = [];
+
+    public OverlayWindow(
+        Configuration config,
+        CombatState state,
+        RotationAdvisor rotation,
+        ReactionAdvisor reactions,
+        MitigationAdvisor mitigation,
+        CaptureTracker capture,
+        LevelingAdvisor leveling)
+        : base("Beastmaster Assist##BeastmasterAssistOverlay", ImGuiWindowFlags.NoCollapse)
+    {
+        this.config = config;
+        this.state = state;
+        this.rotation = rotation;
+        this.reactions = reactions;
+        this.mitigation = mitigation;
+        this.capture = capture;
+        this.leveling = leveling;
+
+        RespectCloseHotkey = false;
+        Size = new Vector2(380, 0);
+        SizeCondition = ImGuiCond.FirstUseEver;
+    }
+
+    public override void PreDraw()
+    {
+        var flags = ImGuiWindowFlags.NoCollapse;
+        if (config.LockOverlay)
+            flags |= ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize;
+
+        Flags = flags;
+
+        ImGui.SetNextWindowBgAlpha(0.90f);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 8f);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4f);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(12, 10));
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(6, 6));
+        ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.08f, 0.08f, 0.10f, 0.94f));
+        ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.30f, 0.30f, 0.35f, 0.80f));
+    }
+
+    public override void PostDraw()
+    {
+        ImGui.PopStyleColor(2);
+        ImGui.PopStyleVar(4);
+    }
+
+    public override void Draw()
+    {
+        UiText.Sync(config);
+        RefreshSnapshot();
+
+        if (config.CompactOverlay)
+            DrawCompactMode();
+        else
+            DrawClassicMode();
+    }
+
+    // ================= TRYB KLASYCZNY (PEŁNY, ORYGINALNY) =================
+    private void DrawClassicMode()
+    {
+        DrawClassicHeader();
+        DrawClassicGauges();
+
+        if (config.ShowRotation && rotationSnapshot.Count > 0)
+        {
+            DrawClassicSection(UiText.Rotation, new Vector4(1f, 0.8f, 0.3f, 1f), () =>
+            {
+                foreach (var x in rotationSnapshot.Take(3))
+                {
+                    ImGui.BulletText(x.Action);
+                    ImGui.SameLine();
+                    ImGui.TextDisabled(x.Reason);
+                }
+            });
+        }
+
+        if (config.ShowReactions && reactionSnapshot.Count > 0)
+        {
+            DrawClassicSection(UiText.Reactions, new Vector4(1f, 0.45f, 0.4f, 1f), () =>
+            {
+                foreach (var x in reactionSnapshot.Take(2))
+                {
+                    ImGui.BulletText(x.Action);
+                    ImGui.SameLine();
+                    ImGui.TextDisabled(x.Reason);
+                }
+            });
+        }
+
+        if (config.ShowMitigation && mitigationSnapshot.Count > 0)
+        {
+            DrawClassicSection(UiText.Mitigation, new Vector4(0.4f, 0.75f, 1f, 1f), () =>
+            {
+                foreach (var x in mitigationSnapshot.Take(2))
+                {
+                    ImGui.BulletText(x.Action);
+                    ImGui.SameLine();
+                    ImGui.TextDisabled(x.Reason);
+                }
+            });
+        }
+
+        if (levelingSnapshot.Count > 0)
+        {
+            DrawClassicSection(UiText.Leveling, new Vector4(0.75f, 0.55f, 1f, 1f), () =>
+            {
+                for (var i = 0; i < levelingSnapshot.Count; i++)
+                {
+                    var s = levelingSnapshot[i];
+                    var tag = s.Captured ? UiText.Captured : UiText.Missing;
+                    ImGui.TextColored(i == 0 ? new Vector4(0.85f, 0.70f, 1f, 1f) : new Vector4(0.9f, 0.9f, 0.9f, 1f),
+                        i == 0 ? $"-> Lv{s.Level} {s.Name} ({tag})" : $" • Lv{s.Level} {s.Name} ({tag})");
+                    ImGui.Indent(12);
+                    ImGui.TextWrapped(s.Location);
+                    ImGui.Unindent(12);
+                }
+            });
+        }
+
+        if (config.ShowCaptureHud && !string.IsNullOrEmpty(captureText))
+        {
+            DrawClassicSection(UiText.Capture, new Vector4(0.55f, 1f, 0.55f, 1f), () =>
+            {
+                ImGui.TextWrapped(captureText);
+            });
+        }
+    }
+
+    private void DrawClassicHeader()
+    {
+        var accent = state.InCombat ? new Vector4(1f, 0.35f, 0.3f, 1f) : new Vector4(0.35f, 0.85f, 0.45f, 1f);
+        var p = ImGui.GetCursorScreenPos();
+        ImGui.GetWindowDrawList().AddCircleFilled(p + new Vector2(6, 8), 5f, ImGui.ColorConvertFloat4ToU32(accent));
+        ImGui.Dummy(new Vector2(14, 0));
+        ImGui.SameLine();
+        ImGui.TextColored(new Vector4(1f, 0.85f, 0.35f, 1f), "BEASTMASTER ASSIST");
+        ImGui.SameLine();
+        ImGui.TextDisabled(state.Player is not null ? $"Lv{state.Level}" : UiText.NoPlayer);
+
+        ImGui.SameLine();
+        if (ImGui.SmallButton("Compact"))
+        {
+            config.CompactOverlay = true;
+            config.Save();
+        }
+
+        ImGui.SameLine();
+        if (ImGui.SmallButton(UiText.HideOverlay))
+        {
+            UiNavigator.ToggleOverlay?.Invoke();
+        }
+
+        ImGui.Separator();
+    }
+
+    private void DrawClassicGauges()
+    {
+        const float h = 18f;
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(1f, 0.72f, 0.2f, 1f));
+        ImGui.ProgressBar(state.PlayerTp / 250f, new Vector2(-1, h), $"TP {state.PlayerTp}/250");
+        ImGui.PopStyleColor();
+
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(0.35f, 0.70f, 1f, 1f));
+        ImGui.ProgressBar(state.FamiliarTp / 250f, new Vector2(-1, h), $"{UiText.FamiliarLabel} {state.FamiliarTp}/250");
+        ImGui.PopStyleColor();
+
+        ImGui.TextDisabled($"{state.ActiveKinship}   {BestiaryCatalog.BeastModeName(state.ActiveKinship)}");
+        ImGui.Spacing();
+    }
+
+    private static void DrawClassicSection(string t, Vector4 c, Action body)
+    {
+        ImGui.Spacing();
+        ImGui.TextColored(c, t.ToUpperInvariant());
+        ImGui.PushStyleColor(ImGuiCol.Separator, c);
+        ImGui.Separator();
+        ImGui.PopStyleColor();
+        ImGui.Indent(6);
+        body();
+        ImGui.Unindent(6);
+    }
+
+    // ================= TRYB KOMPAKTOWY =================
+    private void DrawCompactMode()
+    {
+        DrawCompactHeader();
+        DrawCompactResourceBars();
+
+        if (config.ShowReactions && reactionSnapshot.Count > 0)
+        {
+            var r = reactionSnapshot[0];
+            ImGui.TextColored(new Vector4(1f, 0.4f, 0.4f, 1f), "[REACTION]");
+            ImGui.SameLine();
+            ImGui.Text(r.Action);
+            ImGui.SameLine();
+            ImGui.TextDisabled($"({r.Reason})");
+        }
+
+        if (config.ShowMitigation && mitigationSnapshot.Count > 0)
+        {
+            var m = mitigationSnapshot[0];
+            ImGui.TextColored(new Vector4(0.4f, 0.75f, 1f, 1f), "[MITIGATION]");
+            ImGui.SameLine();
+            ImGui.Text(m.Action);
+            ImGui.SameLine();
+            ImGui.TextDisabled($"({m.Reason})");
+        }
+
+        if (config.ShowCaptureHud && !string.IsNullOrEmpty(captureText))
+        {
+            ImGui.Spacing();
+            ImGui.TextColored(new Vector4(0.45f, 0.95f, 0.45f, 1f), "CAPTURE");
+            ImGui.TextWrapped(captureText);
+        }
+
+        if (config.ShowRotation && rotationSnapshot.Count > 0)
+        {
+            var prime = rotationSnapshot[0];
+            ImGui.TextDisabled("NEXT");
+            ImGui.SameLine();
+            ImGui.TextColored(new Vector4(1f, 0.95f, 0.6f, 1f), prime.Action);
+            ImGui.SameLine();
+            ImGui.TextDisabled($"({prime.Reason})");
+
+            if (state.InCombat && rotationSnapshot.Count > 1)
+            {
+                for (var i = 1; i < Math.Min(rotationSnapshot.Count, 3); i++)
+                {
+                    var sub = rotationSnapshot[i];
+                    ImGui.BulletText(sub.Action);
+                    ImGui.SameLine();
+                    ImGui.TextDisabled(sub.Reason);
+                }
+            }
+        }
+
+        if (!state.InCombat && levelingSnapshot.Count > 0)
+        {
+            ImGui.Spacing();
+            ImGui.Separator();
+            var best = levelingSnapshot[0];
+            var tag = best.Captured ? UiText.Captured : UiText.Missing;
+
+            ImGui.TextColored(new Vector4(0.85f, 0.7f, 1f, 1f), "LEVELING");
+            ImGui.Text($"Lv{best.Level} {best.Name} ({tag})");
+            ImGui.TextDisabled(best.Location);
+
+            if (levelingSnapshot.Count > 1)
+            {
+                ImGui.SameLine();
+                if (ImGui.SmallButton(showMoreLeveling ? "[-]" : $"+{levelingSnapshot.Count - 1}"))
+                {
+                    showMoreLeveling = !showMoreLeveling;
+                }
+
+                if (showMoreLeveling)
+                {
+                    for (var i = 1; i < levelingSnapshot.Count; i++)
+                    {
+                        var alt = levelingSnapshot[i];
+                        var altTag = alt.Captured ? UiText.Captured : UiText.Missing;
+                        ImGui.TextDisabled($"• Lv{alt.Level} {alt.Name} ({altTag}) — {alt.Location}");
+                    }
+                }
+            }
+        }
+    }
+
+    private void DrawCompactHeader()
+    {
+        var accent = state.InCombat ? new Vector4(1f, 0.3f, 0.3f, 1f) : new Vector4(0.3f, 0.9f, 0.4f, 1f);
+        var p = ImGui.GetCursorScreenPos();
+        ImGui.GetWindowDrawList().AddCircleFilled(p + new Vector2(5, 7), 4f, ImGui.ColorConvertFloat4ToU32(accent));
+        ImGui.Dummy(new Vector2(10, 0));
+        ImGui.SameLine();
+        ImGui.TextColored(new Vector4(1f, 0.82f, 0.3f, 1f), "BST");
+        ImGui.SameLine();
+        ImGui.TextDisabled(state.Player is not null ? $"Lv{state.Level}" : UiText.NoPlayer);
+
+        if (state.ActiveKinship != Kinship.None)
+        {
+            ImGui.SameLine();
+            ImGui.TextDisabled($"• {state.ActiveKinship}");
+        }
+
+        ImGui.SameLine(ImGui.GetWindowWidth() - 75f);
+        if (ImGui.SmallButton("Classic"))
+        {
+            config.CompactOverlay = false;
+            config.Save();
+        }
+        ImGui.SameLine();
+        if (ImGui.SmallButton("×"))
+        {
+            UiNavigator.ToggleOverlay?.Invoke();
+        }
+
+        ImGui.Separator();
+    }
+
+    private void DrawCompactResourceBars()
+    {
+        const float barHeight = 18f;
+        var availWidth = ImGui.GetContentRegionAvail().X;
+        var barWidth = (availWidth - 85f) * 0.5f;
+
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextDisabled("TP");
+        ImGui.SameLine();
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(0.95f, 0.65f, 0.15f, 1f));
+        ImGui.ProgressBar(state.PlayerTp / 250f, new Vector2(barWidth, barHeight), $"{state.PlayerTp}");
+        ImGui.PopStyleColor();
+
+        ImGui.SameLine(0, 10f);
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextDisabled("Fam");
+        ImGui.SameLine();
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, new Vector4(0.30f, 0.65f, 0.95f, 1f));
+        ImGui.ProgressBar(state.FamiliarTp / 250f, new Vector2(barWidth, barHeight), $"{state.FamiliarTp}");
+        ImGui.PopStyleColor();
+
+        ImGui.Spacing();
+    }
+
+    private void RefreshSnapshot()
+    {
+        if (DateTime.UtcNow < nextSnapshotAt) return;
+        nextSnapshotAt = DateTime.UtcNow.AddMilliseconds(500);
+
+        captureText = capture.CapturePrompt;
+
+        rotationSnapshot.Clear();
+        rotationSnapshot.AddRange(rotation.Advise(state));
+
+        reactionSnapshot.Clear();
+        reactionSnapshot.AddRange(reactions.Advise(state));
+
+        mitigationSnapshot.Clear();
+        mitigationSnapshot.AddRange(mitigation.Advise(state));
+
+        levelingSnapshot.Clear();
+        levelingSnapshot.AddRange(leveling.Suggest(state.Level, capture.Has));
+    }
 }

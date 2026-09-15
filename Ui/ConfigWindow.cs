@@ -25,6 +25,12 @@ public sealed class ConfigWindow : Window
         if (ImGui.RadioButton(UiText.EnglishUi, !polish)) { config.PreferPolishUi = false; config.Save(); }
         UiText.Sync(config);
         ImGui.Separator();
+        var compact = config.CompactOverlay;
+if (ImGui.Checkbox(UiText.T("Tryb kompaktowy (mini overlay)", "Compact overlay mode"), ref compact))
+{
+    config.CompactOverlay = compact;
+    config.Save();
+}
 
         var ov = config.OverlayEnabled;
         if (ImGui.Checkbox(UiText.Overlay, ref ov)) { config.OverlayEnabled = ov; config.Save(); }
