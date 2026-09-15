@@ -1,9 +1,12 @@
 using System.Numerics;
 using BeastmasterAssist.Combat;
 using BeastmasterAssist.Data;
+using BeastmasterAssist.Ipc;
 using BeastmasterAssist.Tracking;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Textures;
 using Dalamud.Interface.Windowing;
+using Dalamud.Plugin.Services;
 
 
 namespace BeastmasterAssist.Ui;
@@ -13,11 +16,11 @@ public sealed class OverlayWindow : Window
 {
     private readonly Configuration config;
     private readonly CombatState state;
-    private readonly RotationAdvisor rotation;
-    private readonly ReactionAdvisor reactions;
-    private readonly MitigationAdvisor mitigation;
     private readonly CaptureTracker capture;
     private readonly LevelingAdvisor leveling;
+    private readonly GameData gameData;
+    private readonly RotationSolverIpc rsr;
+    private readonly ITextureProvider textures;
 
 
     private DateTime nextSnapshotAt = DateTime.MinValue;
@@ -25,29 +28,26 @@ public sealed class OverlayWindow : Window
     private bool showMoreLeveling;
 
 
-    private readonly List<Advice> rotationSnapshot = [];
-    private readonly List<Advice> reactionSnapshot = [];
-    private readonly List<Advice> mitigationSnapshot = [];
     private readonly List<LevelingAdvisor.Spot> levelingSnapshot = [];
 
 
     public OverlayWindow(
         Configuration config,
         CombatState state,
-        RotationAdvisor rotation,
-        ReactionAdvisor reactions,
-        MitigationAdvisor mitigation,
         CaptureTracker capture,
-        LevelingAdvisor leveling)
+        LevelingAdvisor leveling,
+        GameData gameData,
+        RotationSolverIpc rsr,
+        ITextureProvider textures)
         : base("Beastmaster Assist##BeastmasterAssistOverlay", ImGuiWindowFlags.NoCollapse)
     {
         this.config = config;
         this.state = state;
-        this.rotation = rotation;
-        this.reactions = reactions;
-        this.mitigation = mitigation;
         this.capture = capture;
         this.leveling = leveling;
+        this.gameData = gameData;
+        this.rsr = rsr;
+        this.textures = textures;
 
 
         RespectCloseHotkey = false;
@@ -110,45 +110,9 @@ public sealed class OverlayWindow : Window
         DrawClassicGauges();
 
 
-        if (config.ShowRotation && rotationSnapshot.Count > 0)
+        if (config.ShowRotation)
         {
-            DrawClassicSection(UiText.Rotation, new Vector4(1f, 0.8f, 0.3f, 1f), () =>
-            {
-                foreach (var x in rotationSnapshot.Take(3))
-                {
-                    ImGui.BulletText(x.Action);
-                    ImGui.SameLine();
-                    ImGui.TextDisabled(x.Reason);
-                }
-            });
-        }
-
-
-        if (config.ShowReactions && reactionSnapshot.Count > 0)
-        {
-            DrawClassicSection(UiText.Reactions, new Vector4(1f, 0.45f, 0.4f, 1f), () =>
-            {
-                foreach (var x in reactionSnapshot.Take(2))
-                {
-                    ImGui.BulletText(x.Action);
-                    ImGui.SameLine();
-                    ImGui.TextDisabled(x.Reason);
-                }
-            });
-        }
-
-
-        if (config.ShowMitigation && mitigationSnapshot.Count > 0)
-        {
-            DrawClassicSection(UiText.Mitigation, new Vector4(0.4f, 0.75f, 1f, 1f), () =>
-            {
-                foreach (var x in mitigationSnapshot.Take(2))
-                {
-                    ImGui.BulletText(x.Action);
-                    ImGui.SameLine();
-                    ImGui.TextDisabled(x.Reason);
-                }
-            });
+            DrawClassicSection(UiText.Rotation, new Vector4(1f, 0.8f, 0.3f, 1f), DrawNextAction);
         }
 
 
@@ -242,6 +206,45 @@ public sealed class OverlayWindow : Window
     }
 
 
+    // Wspolna dla trybu klasycznego i kompaktowego: ikonka + nazwa sugerowanej
+    // akcji pochodzacej z Rotation Solver Reborn (przez IPC).
+    private void DrawNextAction()
+    {
+        if (!rsr.Available)
+        {
+            ImGui.TextDisabled(UiText.T("Rotation Solver Reborn nieaktywny.", "Rotation Solver Reborn not active."));
+            return;
+        }
+
+
+        var info = gameData.ResolveAction(rsr.NextActionId);
+        if (info is null)
+        {
+            ImGui.TextDisabled(UiText.T("Brak sugestii.", "No suggestion."));
+            return;
+        }
+
+
+        var size = 28f;
+        var wrap = textures.GetFromGameIcon(new GameIconLookup(info.Value.IconId)).GetWrapOrEmpty();
+        ImGui.Image(wrap.ImGuiHandle, new Vector2(size, size));
+        ImGui.SameLine();
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextColored(new Vector4(1f, 0.95f, 0.6f, 1f), info.Value.Name);
+
+
+        if (rsr.NextGcdActionId != 0 && rsr.NextGcdActionId != rsr.NextActionId)
+        {
+            var gcdInfo = gameData.ResolveAction(rsr.NextGcdActionId);
+            if (gcdInfo is not null)
+            {
+                ImGui.SameLine();
+                ImGui.TextDisabled($"-> {gcdInfo.Value.Name}");
+            }
+        }
+    }
+
+
     // ================= TRYB KOMPAKTOWY =================
     private void DrawCompactMode()
     {
@@ -249,25 +252,11 @@ public sealed class OverlayWindow : Window
         DrawCompactResourceBars();
 
 
-        if (config.ShowReactions && reactionSnapshot.Count > 0)
+        if (config.ShowRotation)
         {
-            var r = reactionSnapshot[0];
-            ImGui.TextColored(new Vector4(1f, 0.4f, 0.4f, 1f), "[REACTION]");
+            ImGui.TextDisabled("NEXT");
             ImGui.SameLine();
-            ImGui.Text(r.Action);
-            ImGui.SameLine();
-            ImGui.TextDisabled($"({r.Reason})");
-        }
-
-
-        if (config.ShowMitigation && mitigationSnapshot.Count > 0)
-        {
-            var m = mitigationSnapshot[0];
-            ImGui.TextColored(new Vector4(0.4f, 0.75f, 1f, 1f), "[MITIGATION]");
-            ImGui.SameLine();
-            ImGui.Text(m.Action);
-            ImGui.SameLine();
-            ImGui.TextDisabled($"({m.Reason})");
+            DrawNextAction();
         }
 
 
@@ -276,29 +265,6 @@ public sealed class OverlayWindow : Window
             ImGui.Spacing();
             ImGui.TextColored(new Vector4(0.45f, 0.95f, 0.45f, 1f), "CAPTURE");
             ImGui.TextWrapped(captureText);
-        }
-
-
-        if (config.ShowRotation && rotationSnapshot.Count > 0)
-        {
-            var prime = rotationSnapshot[0];
-            ImGui.TextDisabled("NEXT");
-            ImGui.SameLine();
-            ImGui.TextColored(new Vector4(1f, 0.95f, 0.6f, 1f), prime.Action);
-            ImGui.SameLine();
-            ImGui.TextDisabled($"({prime.Reason})");
-
-
-            if (state.InCombat && rotationSnapshot.Count > 1)
-            {
-                for (var i = 1; i < Math.Min(rotationSnapshot.Count, 3); i++)
-                {
-                    var sub = rotationSnapshot[i];
-                    ImGui.BulletText(sub.Action);
-                    ImGui.SameLine();
-                    ImGui.TextDisabled(sub.Reason);
-                }
-            }
         }
 
 
@@ -357,8 +323,6 @@ public sealed class OverlayWindow : Window
         }
 
 
-        // Dynamiczne wyliczenie pozycji przyciskow zamiast sztywnego "- 75f",
-        // ktore nachodzilo na tekst naglowka przy waskim oknie lub wiekszej skali czcionki.
         var style = ImGui.GetStyle();
         var classicWidth = ImGui.CalcTextSize("Classic").X + style.FramePadding.X * 2f;
         var closeWidth = ImGui.CalcTextSize("x").X + style.FramePadding.X * 2f;
@@ -389,8 +353,6 @@ public sealed class OverlayWindow : Window
         var spacing = ImGui.GetStyle().ItemSpacing.X;
 
 
-        // Mierzymy rzeczywista szerokosc etykiet zamiast zakladac stala rezerwe (85f),
-        // ktora przy innej skali/szerokosci okna powodowala nachodzenie paskow TP/Fam.
         var tpLabelWidth = ImGui.CalcTextSize("TP").X;
         var famLabelWidth = ImGui.CalcTextSize("Fam").X;
         var reserved = tpLabelWidth + famLabelWidth + spacing * 4f + 10f;
@@ -426,18 +388,6 @@ public sealed class OverlayWindow : Window
 
 
         captureText = capture.CapturePrompt;
-
-
-        rotationSnapshot.Clear();
-        rotationSnapshot.AddRange(rotation.Advise(state));
-
-
-        reactionSnapshot.Clear();
-        reactionSnapshot.AddRange(reactions.Advise(state));
-
-
-        mitigationSnapshot.Clear();
-        mitigationSnapshot.AddRange(mitigation.Advise(state));
 
 
         levelingSnapshot.Clear();

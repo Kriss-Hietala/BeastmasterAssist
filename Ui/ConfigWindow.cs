@@ -54,10 +54,6 @@ public sealed class ConfigWindow : Window
         if (ImGui.Checkbox(UiText.ShowOnlyOnBst, ref only)) { config.ShowOnlyOnBeastmaster = only; config.Save(); }
         var rot = config.ShowRotation;
         if (ImGui.Checkbox(UiText.ShowRotationOpt, ref rot)) { config.ShowRotation = rot; config.Save(); }
-        var rec = config.ShowReactions;
-        if (ImGui.Checkbox(UiText.ShowReactionsOpt, ref rec)) { config.ShowReactions = rec; config.Save(); }
-        var mit = config.ShowMitigation;
-        if (ImGui.Checkbox(UiText.ShowMitigationOpt, ref mit)) { config.ShowMitigation = mit; config.Save(); }
         var cap = config.ShowCaptureHud;
         if (ImGui.Checkbox(UiText.ShowCaptureOpt, ref cap)) { config.ShowCaptureHud = cap; config.Save(); }
         var markers = config.ShowNameplateMarkers;

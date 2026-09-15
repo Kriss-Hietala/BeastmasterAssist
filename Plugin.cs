@@ -31,15 +31,13 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Configuration config;
     private readonly GameData gameData;
     private readonly CombatState combatState;
-    private readonly RotationAdvisor rotation;
-    private readonly ReactionAdvisor reactions;
-    private readonly MitigationAdvisor mitigation;
     private readonly LevelingAdvisor leveling;
     private readonly CaptureTracker capture;
     private readonly ProgressTracker progress;
     private readonly NameplateMarker nameplateMarker;
     private readonly NavigationIpc navigationIpc;
     private readonly NavigationController navigation;
+    private readonly RotationSolverIpc rotationSolverIpc;
 
 
     private readonly OverlayWindow overlay;
@@ -59,6 +57,7 @@ public sealed class Plugin : IDalamudPlugin
         IObjectTable objects,
         ICondition condition,
         INamePlateGui namePlateGui,
+        ITextureProvider textures,
         IPluginLog log)
     {
         this.pluginInterface = pluginInterface;
@@ -81,9 +80,6 @@ public sealed class Plugin : IDalamudPlugin
 
 
         combatState = new CombatState(objects, targets, condition, gameData, log);
-        rotation = new RotationAdvisor(gameData, config);
-        reactions = new ReactionAdvisor(gameData);
-        mitigation = new MitigationAdvisor(gameData);
         leveling = new LevelingAdvisor();
 
 
@@ -92,9 +88,10 @@ public sealed class Plugin : IDalamudPlugin
         nameplateMarker = new NameplateMarker(config, namePlateGui, capture);
         navigationIpc = new NavigationIpc(pluginInterface);
         navigation = new NavigationController(navigationIpc, chat, log);
+        rotationSolverIpc = new RotationSolverIpc(pluginInterface);
 
 
-        overlay = new OverlayWindow(config, combatState, rotation, reactions, mitigation, capture, leveling);
+        overlay = new OverlayWindow(config, combatState, capture, leveling, gameData, rotationSolverIpc, textures);
         bestiary = new BestiaryWindow(config, capture, gameData, navigation);
         progressWindow = new ProgressWindow(config, progress, gameData);
         configWindow = new ConfigWindow(config);
@@ -148,6 +145,7 @@ public sealed class Plugin : IDalamudPlugin
 
         capture.Detach();
         nameplateMarker.Detach();
+        rotationSolverIpc.Dispose();
 
 
         commands.RemoveHandler(Command);
@@ -172,6 +170,7 @@ public sealed class Plugin : IDalamudPlugin
         progress.Tick();
         nameplateMarker.Tick();
         navigation.Tick();
+        rotationSolverIpc.Tick();
 
 
         var shouldShowOverlay = config.OverlayEnabled &&

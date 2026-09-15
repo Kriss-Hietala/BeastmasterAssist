@@ -2,12 +2,15 @@ using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Plugin.Services;
 using Lumina.Excel.Sheets;
 
+
 namespace BeastmasterAssist.Data;
+
 
 public sealed class GameData
 {
     private readonly IDataManager data;
     private readonly IPluginLog log;
+
 
     public uint JobId { get; private set; }
     public int ResolvedActionCount => Actions.Count;
@@ -15,11 +18,13 @@ public sealed class GameData
     public readonly Dictionary<string, uint> Statuses = new(StringComparer.OrdinalIgnoreCase);
     public readonly Dictionary<string, uint> Items = new(StringComparer.OrdinalIgnoreCase);
 
+
     public GameData(IDataManager data, IPluginLog log)
     {
         this.data = data;
         this.log = log;
     }
+
 
     public void Resolve()
     {
@@ -30,8 +35,10 @@ public sealed class GameData
         ResolveAchievements();
     }
 
+
     public bool IsBeastmaster(IPlayerCharacter? player) =>
         player is not null && JobId != 0 && player.ClassJob.RowId == JobId;
+
 
     public uint Action(params string[] names)
     {
@@ -41,6 +48,22 @@ public sealed class GameData
         return 0;
     }
 
+
+    // Uzywane przez integracje z Rotation Solver Reborn: zamienia surowe ID akcji
+    // otrzymane przez IPC na nazwe i ID ikony do wyswietlenia w overlayu.
+    public (string Name, uint IconId)? ResolveAction(uint actionId)
+    {
+        if (actionId == 0) return null;
+        var sheet = data.GetExcelSheet<Lumina.Excel.Sheets.Action>();
+        if (sheet is null) return null;
+        var row = sheet.GetRowOrDefault(actionId);
+        if (row is null) return null;
+        var name = row.Value.Name.ToString();
+        if (string.IsNullOrWhiteSpace(name)) return null;
+        return (name, (uint)row.Value.Icon);
+    }
+
+
     public void Dump(IPluginLog pluginLog)
     {
         pluginLog.Info("BST JobId={0}", JobId);
@@ -49,6 +72,7 @@ public sealed class GameData
         foreach (var kv in Statuses.OrderBy(k => k.Value))
             pluginLog.Info("  status {0} = {1}", kv.Value, kv.Key);
     }
+
 
     private void ResolveJob()
     {
@@ -69,6 +93,7 @@ public sealed class GameData
         log.Warning("Beastmaster ClassJob not found.");
     }
 
+
     private void ResolveActions()
     {
         var sheet = data.GetExcelSheet<Lumina.Excel.Sheets.Action>();
@@ -84,6 +109,7 @@ public sealed class GameData
         foreach (var n in new[] { "Smash Axe", "Capture", "First Battlehorn", "Gauge", "Axeblade Bite", "Avalanche Axe", "Parting Blow", "Mistral Axe", "Trick", "Second Battlehorn", "Shieldsplitter", "Spinning Axe", "Gale Axe", "Tempered Release", "Third Battlehorn", "Borrow", "Beast Mode", "Shield Charge", "Rally", "Rallying Cheer", "Brutal Rage", "Hawkish Talons", "Risen Fall", "Calamity", "Snarl", "Challenge" })
             Actions.TryAdd(n, 0);
     }
+
 
     private void ResolveStatuses()
     {
@@ -106,6 +132,7 @@ public sealed class GameData
         }
     }
 
+
     private void ResolveItems()
     {
         var sheet = data.GetExcelSheet<Item>();
@@ -124,6 +151,7 @@ public sealed class GameData
                     Items.TryAdd(w, row.RowId);
         }
     }
+
 
     private void ResolveAchievements()
     {
