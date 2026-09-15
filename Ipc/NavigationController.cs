@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using BeastmasterAssist.Data;
 using Dalamud.Plugin.Services;
 
@@ -7,6 +8,20 @@ namespace BeastmasterAssist.Ipc;
 public sealed class NavigationController
 {
     private enum State { Idle, Teleporting, WaitNavReady, Pathing }
+
+    // Znane nazwy stref ARR uzywane w BestiaryCatalog. Location w katalogu czesto
+    // nie ma zadnego separatora miedzy nazwa strefy a podlokacja (np. "Western Thanalan
+    // The Footfalls"), wiec dopasowujemy prefiks do tej listy zamiast liczyc na przecinek/nawias.
+    // Posortowane od najdluzszych, zeby dluzsze nazwy nie byly przycinane przez krotsze prefiksy.
+    private static readonly string[] KnownZones = new[]
+    {
+        "Limsa Lominsa Upper Decks", "Limsa Lominsa Lower Decks", "Wolves' Den Pier",
+        "Ul'dah - Steps of Nald", "Ul'dah - Steps of Thal",
+        "Western Thanalan", "Central Thanalan", "Eastern Thanalan", "Southern Thanalan", "Northern Thanalan",
+        "Middle La Noscea", "Lower La Noscea", "Eastern La Noscea", "Western La Noscea", "Upper La Noscea", "Outer La Noscea",
+        "New Gridania", "Old Gridania", "Central Shroud", "East Shroud", "South Shroud", "North Shroud",
+        "Mor Dhona",
+    }.OrderByDescending(z => z.Length).ToArray();
 
     private readonly NavigationIpc ipc;
     private readonly IChatGui chat;
@@ -42,7 +57,7 @@ public sealed class NavigationController
         var zone = ResolveZone(beast);
         if (string.IsNullOrWhiteSpace(zone))
         {
-            chat.PrintError("[BST Assist] Brak zdefiniowanej strefy dla tej bestii.");
+            chat.PrintError("[BST Assist] Nie mozna wyznaczyc celu teleportu dla tej bestii (duty/quest lub nieznana strefa).");
             return;
         }
 
@@ -131,11 +146,26 @@ public sealed class NavigationController
     private static string? ResolveZone(BeastEntry beast)
     {
         if (!string.IsNullOrWhiteSpace(beast.Zone)) return beast.Zone;
+
+        // Duty (dungeon/trial/raid/alliance) i questowe familiary nie maja sensownego
+        // celu teleportu przez Lifestream.
+        if (beast.Duty) return null;
+        if (string.Equals(beast.Habitat, "Quest", StringComparison.OrdinalIgnoreCase)) return null;
+
         var location = beast.Location;
         if (string.IsNullOrWhiteSpace(location)) return null;
+
+        foreach (var zone in KnownZones)
+        {
+            if (location.StartsWith(zone, StringComparison.OrdinalIgnoreCase))
+                return zone;
+        }
+
+        // Fallback: stara metoda przez separator, gdyby strefa byla spoza znanej listy
+        // (np. przyszle rozszerzenie bestiariusza o inne expansiony).
         var idx = location.IndexOfAny(new[] { '(', ',' });
-        var zone = idx > 0 ? location[..idx] : location;
-        zone = zone.Trim();
-        return zone.Length == 0 ? null : zone;
+        var fallback = idx > 0 ? location[..idx] : location;
+        fallback = fallback.Trim();
+        return fallback.Length == 0 ? null : fallback;
     }
 }
