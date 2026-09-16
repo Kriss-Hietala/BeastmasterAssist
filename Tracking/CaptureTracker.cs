@@ -1,6 +1,7 @@
 using BeastmasterAssist.Combat;
 using BeastmasterAssist.Data;
 using Dalamud.Game.Chat;
+using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin.Services;
 
 namespace BeastmasterAssist.Tracking;
@@ -9,15 +10,17 @@ public sealed class CaptureTracker
 {
     private readonly Configuration config;
     private readonly IChatGui chat;
+    private readonly ICondition condition;
     private readonly IObjectTable objects;
 
     public BeastEntry? NearbyHint { get; private set; }
     public string CapturePrompt { get; private set; } = "";
 
-    public CaptureTracker(Configuration config, GameData data, IChatGui chat, IClientState clientState, IObjectTable objects, IPluginLog log)
+    public CaptureTracker(Configuration config, GameData data, IChatGui chat, IClientState clientState, ICondition condition, IObjectTable objects, IPluginLog log)
     {
         this.config = config;
         this.chat = chat;
+        this.condition = condition;
         this.objects = objects;
     }
 
@@ -26,6 +29,15 @@ public sealed class CaptureTracker
 
     public int CapturedCount => config.CapturedBeastIds.Count;
     public bool Has(int id) => config.CapturedBeastIds.Contains(id);
+
+    // Niektore bestie (Duty=true) sa lapane wylacznie wewnatrz konkretnej duty
+    // (np. Antling w Cutter's Cry). Poza duty ich nazwa handlowa czesto pokrywa
+    // sie z niepowiazanymi mobami overworldowymi (np. "Antling Worker"),
+    // wiec dopasowanie musi byc wylaczone poza instancja.
+    private bool InDuty =>
+        condition[ConditionFlag.BoundByDuty] ||
+        condition[ConditionFlag.BoundByDuty56] ||
+        condition[ConditionFlag.BoundByDuty95];
 
     public void Toggle(int id)
     {
@@ -82,8 +94,9 @@ public sealed class CaptureTracker
 
     public BeastEntry? MatchByMonster(string name) =>
         BestiaryCatalog.All.FirstOrDefault(b =>
-            name.Contains(b.Monster, StringComparison.OrdinalIgnoreCase) ||
-            name.Contains(b.Name, StringComparison.OrdinalIgnoreCase));
+            (!b.Duty || InDuty) &&
+            (name.Contains(b.Monster, StringComparison.OrdinalIgnoreCase) ||
+             name.Contains(b.Name, StringComparison.OrdinalIgnoreCase)));
 
     private void OnChatMessage(IHandleableChatMessage chatMessage)
     {
