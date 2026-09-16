@@ -71,7 +71,7 @@ public sealed class Plugin : IDalamudPlugin
         combatState = new CombatState(objects, targets, condition, gameData, log);
         leveling = new LevelingAdvisor();
 
-        capture = new CaptureTracker(config, gameData, chat, clientState, objects, log);
+        capture = new CaptureTracker(config, gameData, chat, clientState, condition, objects, log);
         progress = new ProgressTracker(config, gameData, data, clientState, log);
         nameplateMarker = new NameplateMarker(config, namePlateGui, capture);
         navigationIpc = new NavigationIpc(pluginInterface);
