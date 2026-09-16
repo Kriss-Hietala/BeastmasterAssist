@@ -58,7 +58,10 @@ public sealed class OverlayWindow : Window
 
     public override void PreDraw()
     {
-        var flags = ImGuiWindowFlags.NoCollapse;
+        var flags = ImGuiWindowFlags.NoCollapse 
+              | ImGuiWindowFlags.NoFocusOnAppearing 
+              | ImGuiWindowFlags.NoNavInputs 
+              | ImGuiWindowFlags.NoNavFocus;
         if (config.LockOverlay)
             flags |= ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize;
 
