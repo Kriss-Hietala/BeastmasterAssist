@@ -73,7 +73,7 @@ public sealed class Plugin : IDalamudPlugin
 
         capture = new CaptureTracker(config, gameData, chat, clientState, condition, objects, log);
         progress = new ProgressTracker(config, gameData, data, clientState, log);
-        nameplateMarker = new NameplateMarker(config, namePlateGui, capture);
+        nameplateMarker = new NameplateMarker(config, namePlateGui, capture, gameData, combatState);
         navigationIpc = new NavigationIpc(pluginInterface);
         navigation = new NavigationController(navigationIpc, chat, log);
 
