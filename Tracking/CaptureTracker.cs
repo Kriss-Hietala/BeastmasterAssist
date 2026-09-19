@@ -59,9 +59,15 @@ public sealed class CaptureTracker
     public void Tick(CombatState state)
     {
         NearbyHint = null;
+        var playerId = state.Player?.GameObjectId;
         foreach (var obj in objects)
         {
             if (obj is not Dalamud.Game.ClientState.Objects.Types.IBattleNpc npc) continue;
+            // Wlasny przywolany familiar nosi te sama nazwe co zlapana bestia
+            // (bo nim jest) - pomijamy wszystko, czego OwnerId wskazuje na
+            // gracza, zeby juz przywolany/zlapany pupil nigdy nie pojawial sie
+            // jako "do zlapania".
+            if (playerId.HasValue && npc.OwnerId == playerId.Value) continue;
             var match = MatchByMonster(npc.Name.TextValue);
             if (match is not null && !Has(match.Id))
             {
