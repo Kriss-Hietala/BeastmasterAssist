@@ -3,9 +3,8 @@ namespace BeastmasterAssist.Data;
 /// <summary>Static, level-bracket XP zone guide for actual character/job
 /// leveling (FATE grinding grounds) - distinct from Master's Bestiary
 /// beast-catch suggestions in LevelingAdvisor.Suggest. Brackets follow the
-/// well-documented ARR/Heavensward FATE grinding zones (Prima Games / community
-/// guides); this is core game geography and does not change with content
-/// patches, unlike beast spawn data.</summary>
+/// well-documented ARR FATE grinding zones (Prima Games / community guides).
+/// Beastmaster caps at Lv50, so only ARR-range brackets are relevant here.</summary>
 public static class LevelingZoneCatalog
 {
     public sealed record ZoneBracket(int MinLevel, int MaxLevel, string Zone, string ZonePl);
@@ -18,11 +17,7 @@ public static class LevelingZoneCatalog
         new(30, 35, "Eastern La Noscea", "Eastern La Noscea"),
         new(35, 40, "Coerthas Central Highlands", "Coerthas Central Highlands"),
         new(40, 45, "Mor Dhona", "Mor Dhona"),
-        new(45, 50, "Northern Thanalan", "Northern Thanalan"),
-        new(50, 53, "Coerthas Western Highlands / Dravanian Forelands", "Coerthas Western Highlands / Dravanian Forelands"),
-        new(53, 57, "The Churning Mists", "The Churning Mists"),
-        new(57, 59, "Dravanian Hinterlands / Sea of Clouds (North)", "Dravanian Hinterlands / Sea of Clouds (polnoc)"),
-        new(59, 61, "Azys Lla", "Azys Lla"),
+        new(45, 51, "Northern Thanalan", "Northern Thanalan"),
     ];
 
     public static ZoneBracket? ForLevel(int level) =>
