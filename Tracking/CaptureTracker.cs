@@ -3,6 +3,7 @@ using BeastmasterAssist.Data;
 using Dalamud.Game.Chat;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin.Services;
+using System.Text.RegularExpressions;
 
 namespace BeastmasterAssist.Tracking;
 
@@ -24,9 +25,8 @@ public sealed class CaptureTracker
         this.objects = objects;
     }
 
-    public void Attach() => chat.ChatMessage += OnChatMessage;
-    public void Detach() => chat.ChatMessage -= OnChatMessage;
-
+    public void Attach() => chat.ChatMessage += OnChat;
+    public void Detach() => chat.ChatMessage -= OnChat;
     public int CapturedCount => config.CapturedBeastIds.Count;
     public bool Has(int id) => config.CapturedBeastIds.Contains(id);
 
@@ -77,36 +77,36 @@ public sealed class CaptureTracker
         }
 
         var b = MatchByMonster(state.Target.Name.TextValue);
-        if (b is null)
-        {
-            CapturePrompt = Loc.T("Gauge na celu.", "Gauge the target.");
-            return;
-        }
-
-        if (Has(b.Id))
-        {
-            CapturePrompt = Loc.T($"{b.Name} juz w bestiariuszu.", $"{b.Name} already captured.");
-            return;
-        }
-
+        if (b is null) { CapturePrompt = Loc.T("Gauge na celu.", "Gauge the target."); return; }
+        if (Has(b.Id)) { CapturePrompt = Loc.T($"{b.Name} juz w bestiariuszu.", $"{b.Name} already captured."); return; }
         CapturePrompt = Loc.T($"{b.Name}: Gauge 30y, Capture 10y. HP {state.TargetHpPct:P0}", $"{b.Name}: Gauge 30y, Capture 10y. HP {state.TargetHpPct:P0}");
     }
 
+    // Dopasowanie po calych slowach (regex \b), nie po dowolnym podciagu -
+    // zwykly string.Contains lapal falszywe trafienia typu "Coeurl" wewnatrz
+    // "Coeurlclaw Hunter/Poacher" (Sylphowie z plemienia, nie bestie do
+    // zlapania), bo "Coeurl" jest tam fragmentem innego, dluzszego slowa bez
+    // spacji/granicy miedzy nimi. WordMatches wymaga, zeby dopasowany fragment
+    // zaczynal i konczyl sie na granicy slowa w nazwie NPC-a.
     public BeastEntry? MatchByMonster(string name) =>
         BestiaryCatalog.All.FirstOrDefault(b =>
             (!b.Duty || InDuty) &&
-            (name.Contains(b.Monster, StringComparison.OrdinalIgnoreCase) ||
-             name.Contains(b.Name, StringComparison.OrdinalIgnoreCase)));
+            (WordMatches(name, b.Monster) || WordMatches(name, b.Name)));
 
-    private void OnChatMessage(IHandleableChatMessage chatMessage)
+    private static bool WordMatches(string haystack, string needle)
     {
-        var text = chatMessage.Message.TextValue;
-        if (!text.Contains("pact", StringComparison.OrdinalIgnoreCase) && !text.Contains("Bestiary", StringComparison.OrdinalIgnoreCase))
-            return;
+        if (string.IsNullOrWhiteSpace(needle)) return false;
+        return Regex.IsMatch(haystack, $@"\b{Regex.Escape(needle)}\b", RegexOptions.IgnoreCase);
+    }
 
+    private void OnChat(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool handled)
+    {
+        var text = message.TextValue;
+        if (!(text.Contains("pact", StringComparison.OrdinalIgnoreCase) || text.Contains("Bestiary", StringComparison.OrdinalIgnoreCase)))
+            return;
         foreach (var b in BestiaryCatalog.All)
         {
-            if (text.Contains(b.Name, StringComparison.OrdinalIgnoreCase) || text.Contains(b.Monster, StringComparison.OrdinalIgnoreCase))
+            if (WordMatches(text, b.Name) || WordMatches(text, b.Monster))
             {
                 MarkCaptured(b.Id);
                 break;
