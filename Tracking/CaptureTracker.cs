@@ -1,8 +1,7 @@
 using BeastmasterAssist.Combat;
 using BeastmasterAssist.Data;
+using Dalamud.Game.Chat;
 using Dalamud.Game.ClientState.Conditions;
-using Dalamud.Game.Text;
-using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
 using System.Text.RegularExpressions;
 
@@ -100,9 +99,12 @@ public sealed class CaptureTracker
         return Regex.IsMatch(haystack, $@"\b{Regex.Escape(needle)}\b", RegexOptions.IgnoreCase);
     }
 
-    private void OnChat(XivChatType type, int timestamp, ref SeString sender, ref SeString message, ref bool handled)
+    // Dalamud v15+: IChatGui.ChatMessage przyjmuje teraz pojedynczy obiekt
+    // IHandleableChatMessage zamiast starego 5-parametrowego delegata z
+    // ref SeString/ref bool. Tekst wiadomosci czytamy z Message.TextValue.
+    private void OnChat(IHandleableChatMessage chatMessage)
     {
-        var text = message.TextValue;
+        var text = chatMessage.Message.TextValue;
         if (!(text.Contains("pact", StringComparison.OrdinalIgnoreCase) || text.Contains("Bestiary", StringComparison.OrdinalIgnoreCase)))
             return;
         foreach (var b in BestiaryCatalog.All)
