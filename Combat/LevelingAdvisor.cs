@@ -49,15 +49,16 @@ public sealed class LevelingAdvisor
 
     // Realna podpowiedz strefy do zdobywania EXP postaci/joba (FATE grinding),
     // calkowicie niezalezna od bestiariusza - odpowiada wprost na "dokad isc,
-    // zeby wbic poziom", w odroznieniu od Suggest() powyzej.
+    // zeby wbic poziom", w odroznieniu od Suggest() powyzej. Beastmaster ma cap
+    // na Lv50, wiec brak dopasowanego przedzialu oznacza po prostu max level.
     public string SuggestXpZone(int playerLevel)
     {
         var bracket = LevelingZoneCatalog.ForLevel(playerLevel);
         if (bracket is null)
         {
             return Loc.T(
-                "Powyzej Lv60: kontynuuj MSQ i korzystaj z Duty Roulette (Leveling / MSQ) - to nadal najlepsze EXP na godzine.",
-                "Above Lv60: continue the MSQ and use Duty Roulette (Leveling / MSQ) - still the best EXP per hour.");
+                "Lv50 to maksymalny poziom Beastmastera - skup sie na Master's Bestiary i Crucible.",
+                "Lv50 is Beastmaster's level cap - focus on the Master's Bestiary and the Crucible instead.");
         }
 
         return Loc.Polish ? bracket.ZonePl : bracket.Zone;
