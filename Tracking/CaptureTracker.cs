@@ -1,7 +1,8 @@
 using BeastmasterAssist.Combat;
 using BeastmasterAssist.Data;
-using Dalamud.Game.Chat;
 using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.Text;
+using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
 using System.Text.RegularExpressions;
 
