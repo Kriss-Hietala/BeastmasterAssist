@@ -10,25 +10,25 @@ namespace BeastmasterAssist.Tracking;
 /// name matches an uncaptured Master's Bestiary beast. Purely visual: it never
 /// selects a target, moves the camera, or presses any action.
 ///
-/// RequestRedraw forces the game to rebuild nameplate data, which is not free
-/// when called every frame in crowded areas. We only ask for a redraw when
-/// CaptureTracker actually has a nearby uncaptured beast to mark (it already
-/// scans the object table every tick for the capture HUD, so this is free to
-/// check), and even then throttle it to a few times per second - fast enough
-/// to avoid visible marker flicker without hammering the nameplate system.
+/// The game resets the marker icon slot more often than any throttle interval
+/// can compensate for, so while there is something nearby worth marking we
+/// call RequestRedraw every single frame (matching the original fix for
+/// flicker). The performance-sensitive part is calling RequestRedraw at all
+/// when nothing is nearby - CaptureTracker already scans the object table
+/// every tick for the capture HUD, so checking NearbyHint here is free, and we
+/// skip the redraw entirely (and its per-frame nameplate rebuild cost) unless
+/// there is actually an uncaptured beast in range.
 /// </summary>
 public sealed class NameplateMarker
 {
     // FFXIV hunt-mark style icon (bronze marker). Adjust here if you prefer a different icon id.
     private const int MarkerIconId = 60092;
-    private static readonly TimeSpan RedrawInterval = TimeSpan.FromMilliseconds(150);
 
     private readonly Configuration config;
     private readonly INamePlateGui namePlateGui;
     private readonly CaptureTracker capture;
     private readonly GameData gameData;
     private readonly CombatState state;
-    private DateTime nextRedrawAt = DateTime.MinValue;
 
     public NameplateMarker(Configuration config, INamePlateGui namePlateGui, CaptureTracker capture, GameData gameData, CombatState state)
     {
@@ -73,11 +73,11 @@ public sealed class NameplateMarker
         if (!ShouldShow) return;
 
         // Nic w poblizu do oznaczenia - kompletnie pomijamy RequestRedraw zamiast
-        // odswiezac wszystkie nameplates na pusto co klatke.
+        // odswiezac wszystkie nameplates na pusto co klatke. Gdy cos jest w
+        // zasiegu, odswiezamy co klatke (bez throttlingu), bo throttle powodowal
+        // widoczne miganie markera.
         if (capture.NearbyHint is null) return;
 
-        if (DateTime.UtcNow < nextRedrawAt) return;
-        nextRedrawAt = DateTime.UtcNow.Add(RedrawInterval);
         namePlateGui.RequestRedraw();
     }
 }
