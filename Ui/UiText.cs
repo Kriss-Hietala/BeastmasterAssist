@@ -32,7 +32,8 @@ public static class UiText
     public static string Trick => "Trick";
     public static string TemperedRelease => "Tempered Release";
     public static string Capture => T("Lapanie", "Capture");
-    public static string Leveling => T("Levelowanie", "Leveling");
+    public static string Leveling => T("Gdzie levelowac (EXP)", "Where to level (EXP)");
+    public static string NearbyCatches => T("Bestie w poblizu (poziom)", "Nearby beasts (level)");
     public static string CapturedCount(int count) => T($"Pakty: {count}/50", $"Pacts: {count}/50");
     public static string MissingCount(int count) => T($"{count} brakujacych", $"{count} missing");
     public static string Achievement => T("Achievementy", "Achievements");
@@ -54,6 +55,7 @@ public static class UiText
     public static string ShowMitigationOpt => T("Pokazuj mitygacje", "Show mitigation");
     public static string ShowCaptureOpt => T("Pokazuj HUD lapania", "Show capture HUD");
     public static string ShowMarkersOpt => T("Pokazuj ikonki nad mobami do zlapania", "Show nameplate markers on catchable mobs");
+    public static string ShowXpZoneOpt => T("Pokazuj podpowiedz gdzie levelowac (EXP)", "Show where-to-level (EXP) hint");
     public static string HoldTpOpt => T("Trzymaj TP na Universality", "Hold TP for Universality");
     public static string ChatNotifyOpt => T("Powiadamiaj na czacie o pakcie", "Announce pacts in chat");
     public static string Rotation => T("Rotacja", "Rotation");
