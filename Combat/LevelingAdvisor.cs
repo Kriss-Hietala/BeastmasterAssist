@@ -46,4 +46,20 @@ public sealed class LevelingAdvisor
             .Select(b => new Spot(b.Name, b.LocalizedLocation(Data.Loc.Polish), b.Level, isCaptured(b.Id)))
             .ToList();
     }
+
+    // Realna podpowiedz strefy do zdobywania EXP postaci/joba (FATE grinding),
+    // calkowicie niezalezna od bestiariusza - odpowiada wprost na "dokad isc,
+    // zeby wbic poziom", w odroznieniu od Suggest() powyzej.
+    public string SuggestXpZone(int playerLevel)
+    {
+        var bracket = LevelingZoneCatalog.ForLevel(playerLevel);
+        if (bracket is null)
+        {
+            return Loc.T(
+                "Powyzej Lv60: kontynuuj MSQ i korzystaj z Duty Roulette (Leveling / MSQ) - to nadal najlepsze EXP na godzine.",
+                "Above Lv60: continue the MSQ and use Duty Roulette (Leveling / MSQ) - still the best EXP per hour.");
+        }
+
+        return Loc.Polish ? bracket.ZonePl : bracket.Zone;
+    }
 }
