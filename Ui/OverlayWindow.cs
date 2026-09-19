@@ -16,6 +16,7 @@ public sealed class OverlayWindow : Window
 
     private DateTime nextSnapshotAt = DateTime.MinValue;
     private string captureText = "";
+    private string xpZoneText = "";
     private bool showMoreLeveling;
 
     private readonly List<LevelingAdvisor.Spot> levelingSnapshot = [];
@@ -89,9 +90,17 @@ public sealed class OverlayWindow : Window
             DrawResourceBars();
         }
 
+        if (config.ShowXpZone && !string.IsNullOrEmpty(xpZoneText))
+        {
+            DrawClassicSection(UiText.Leveling, new Vector4(0.55f, 0.85f, 1f, 1f), () =>
+            {
+                ImGui.TextColored(new Vector4(0.85f, 0.95f, 1f, 1f), $"Lv{state.Level}: {xpZoneText}");
+            });
+        }
+
         if (config.ShowLeveling && levelingSnapshot.Count > 0)
         {
-            DrawClassicSection(UiText.Leveling, new Vector4(0.75f, 0.55f, 1f, 1f), () =>
+            DrawClassicSection(UiText.NearbyCatches, new Vector4(0.75f, 0.55f, 1f, 1f), () =>
             {
                 for (var i = 0; i < levelingSnapshot.Count; i++)
                 {
@@ -195,6 +204,14 @@ public sealed class OverlayWindow : Window
             DrawResourceBars();
         }
 
+        if (config.ShowXpZone && !string.IsNullOrEmpty(xpZoneText))
+        {
+            ImGui.Spacing();
+            ImGui.TextColored(new Vector4(0.55f, 0.85f, 1f, 1f), "XP");
+            ImGui.SameLine();
+            ImGui.TextWrapped(xpZoneText);
+        }
+
         if (config.ShowCaptureHud && !string.IsNullOrEmpty(captureText))
         {
             ImGui.Spacing();
@@ -209,7 +226,7 @@ public sealed class OverlayWindow : Window
             var best = levelingSnapshot[0];
             var tag = best.Captured ? UiText.Captured : UiText.Missing;
 
-            ImGui.TextColored(new Vector4(0.85f, 0.7f, 1f, 1f), "LEVELING");
+            ImGui.TextColored(new Vector4(0.85f, 0.7f, 1f, 1f), "NEARBY");
             ImGui.Text($"Lv{best.Level} {best.Name} ({tag})");
             ImGui.TextDisabled(best.Location);
 
@@ -279,6 +296,7 @@ public sealed class OverlayWindow : Window
         nextSnapshotAt = DateTime.UtcNow.AddMilliseconds(500);
 
         captureText = capture.CapturePrompt;
+        xpZoneText = leveling.SuggestXpZone(state.Level);
 
         levelingSnapshot.Clear();
         levelingSnapshot.AddRange(leveling.Suggest(state.Level, capture.Has));
