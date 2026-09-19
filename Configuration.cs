@@ -16,6 +16,7 @@ public sealed class Configuration : IPluginConfiguration
     public bool ShowOnlyOnBeastmaster { get; set; } = true;
     public bool ShowTpGauges { get; set; } = true;
     public bool ShowLeveling { get; set; } = true;
+    public bool ShowXpZone { get; set; } = true;
     public bool LockOverlay { get; set; }
     public float OverlayScale { get; set; } = 1f;
     public bool ChatCaptureNotify { get; set; } = true;
