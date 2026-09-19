@@ -57,6 +57,8 @@ public sealed class ConfigWindow : Window
         if (ImGui.Checkbox(UiText.T("Pokazuj paski TP", "Show TP gauges"), ref tp)) { config.ShowTpGauges = tp; config.Save(); }
         var lvl = config.ShowLeveling;
         if (ImGui.Checkbox(UiText.T("Pokazuj sugestie levelowania", "Show leveling suggestion"), ref lvl)) { config.ShowLeveling = lvl; config.Save(); }
+        var xpZone = config.ShowXpZone;
+        if (ImGui.Checkbox(UiText.ShowXpZoneOpt, ref xpZone)) { config.ShowXpZone = xpZone; config.Save(); }
         var cap = config.ShowCaptureHud;
         if (ImGui.Checkbox(UiText.ShowCaptureOpt, ref cap)) { config.ShowCaptureHud = cap; config.Save(); }
         var markers = config.ShowNameplateMarkers;
