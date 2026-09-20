@@ -17,33 +17,16 @@ public sealed class LevelingAdvisor
             .Where(b => b.Level <= playerLevel + 3)
             .ToList();
 
-        // Niezlapane bestie maja pierwszenstwo - inaczej najblizsze poziomem, ale
-        // juz schwytane mobki zajmuja miejsca w sugestiach zamiast ustapic tym,
-        // ktore faktycznie warto jeszcze zlapac.
-        var uncaptured = pool
+        // "Gdzie levelowac" ma sens tylko dla bestii, ktorych jeszcze nie mamy -
+        // juz zlapana bestia niczego tu nie wnosi, wiec nie dopelniamy nia listy,
+        // nawet jesli w zasiegu brakuje niezlapanych kandydatow (lista wtedy po
+        // prostu bedzie krotsza niz `count`, ewentualnie pusta).
+        return pool
             .Where(b => !isCaptured(b.Id))
             .OrderBy(b => Math.Abs(b.Level - playerLevel))
             .ThenByDescending(b => b.Level)
             .Take(count)
-            .ToList();
-
-        if (uncaptured.Count >= count)
-            return uncaptured.Select(b => new Spot(b.Name, b.LocalizedLocation(Data.Loc.Polish), b.Level, false)).ToList();
-
-        // Brakuje niezlapanych kandydatow w zasiegu - dopelniamy juz zlapanymi,
-        // zeby lista nadal miala sens (i byla poprawnie oznaczona jako Captured),
-        // zamiast pokazywac mniej pozycji niz `count` bez wyjasnienia.
-        var captured = pool
-            .Where(b => isCaptured(b.Id))
-            .OrderBy(b => Math.Abs(b.Level - playerLevel))
-            .ThenByDescending(b => b.Level)
-            .Take(count - uncaptured.Count)
-            .ToList();
-
-        return uncaptured.Concat(captured)
-            .OrderBy(b => Math.Abs(b.Level - playerLevel))
-            .ThenByDescending(b => b.Level)
-            .Select(b => new Spot(b.Name, b.LocalizedLocation(Data.Loc.Polish), b.Level, isCaptured(b.Id)))
+            .Select(b => new Spot(b.Name, b.LocalizedLocation(Data.Loc.Polish), b.Level, false))
             .ToList();
     }
 
