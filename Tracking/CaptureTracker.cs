@@ -3,7 +3,6 @@ using BeastmasterAssist.Data;
 using Dalamud.Game.Chat;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin.Services;
-using System.Text.RegularExpressions;
 
 namespace BeastmasterAssist.Tracking;
 
@@ -88,12 +87,14 @@ public sealed class CaptureTracker
         CapturePrompt = Loc.T($"{b.Name}: Gauge 30y, Capture 10y. HP {state.TargetHpPct:P0}", $"{b.Name}: Gauge 30y, Capture 10y. HP {state.TargetHpPct:P0}");
     }
 
-    // Dopasowanie po calych slowach (regex \b), nie po dowolnym podciagu -
-    // zwykly string.Contains lapal falszywe trafienia typu "Coeurl" wewnatrz
-    // "Coeurlclaw Hunter/Poacher" (Sylphowie z plemienia, nie bestie do
-    // zlapania), bo "Coeurl" jest tam fragmentem innego, dluzszego slowa bez
-    // spacji/granicy miedzy nimi. WordMatches wymaga, zeby dopasowany fragment
-    // zaczynal i konczyl sie na granicy slowa w nazwie NPC-a.
+    // Dopasowanie po calych slowach - "Coeurl" ma pasowac do samodzielnego slowa
+    // "Coeurl", ale NIE do fragmentu wewnatrz "Coeurlclaw". Wczesniej uzywalismy
+    // do tego Regex.IsMatch(@"\bCoeurl\b"), ale poniewaz kazdy z 50 wpisow
+    // bestiariusza generowal inny wzorzec, a .NET cache'uje tylko ~15 ostatnich
+    // regexow, przy wielu NPC-ach w poblizu (np. w duty) regex byl w kolko
+    // rekompilowany co klatke - to bylo realne zrodlo duzego obciazenia
+    // OnUpdate (widoczne w Plugin Statistics). Ta wersja robi to samo recznie,
+    // przez IndexOf i sprawdzenie sasiadujacych znakow, bez zadnej kompilacji.
     public BeastEntry? MatchByMonster(string name) =>
         BestiaryCatalog.All.FirstOrDefault(b =>
             (!b.Duty || InDuty) &&
@@ -101,8 +102,20 @@ public sealed class CaptureTracker
 
     private static bool WordMatches(string haystack, string needle)
     {
-        if (string.IsNullOrWhiteSpace(needle)) return false;
-        return Regex.IsMatch(haystack, $@"\b{Regex.Escape(needle)}\b", RegexOptions.IgnoreCase);
+        if (string.IsNullOrEmpty(needle) || string.IsNullOrEmpty(haystack)) return false;
+        var start = 0;
+        while (true)
+        {
+            var idx = haystack.IndexOf(needle, start, StringComparison.OrdinalIgnoreCase);
+            if (idx < 0) return false;
+
+            var beforeOk = idx == 0 || !char.IsLetterOrDigit(haystack[idx - 1]);
+            var afterPos = idx + needle.Length;
+            var afterOk = afterPos >= haystack.Length || !char.IsLetterOrDigit(haystack[afterPos]);
+            if (beforeOk && afterOk) return true;
+
+            start = idx + 1;
+        }
     }
 
     // Dalamud v15+: IChatGui.ChatMessage przyjmuje teraz pojedynczy obiekt
